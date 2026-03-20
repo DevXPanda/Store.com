@@ -1,0 +1,23 @@
+{
+  "name": "VegFru — Farm Fresh Delivery",
+  "short_name": "VegFru",
+  "description": "Premium farm-fresh vegetables & fruits delivered in 4-6 hours. Serving Delhi NCR.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FEFAE0",
+  "theme_color": "#14532d",
+  "orientation": "portrait-primary",
+  "categories": ["food", "shopping", "lifestyle"],
+  "lang": "en-IN",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Shop Now", "url": "/#shop", "description": "Browse fresh produce" },
+    { "name": "My Orders", "url": "/orders", "description": "Track your orders" }
+  ],
+  "screenshots": [
+    { "src": "/screenshot-mobile.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow" }
+  ]
+}
