@@ -1,17 +1,20 @@
 'use client'
 import { useState, useMemo, useEffect } from 'react'
 import { SlidersHorizontal, Search, X, ChevronDown } from 'lucide-react'
-import { categories, products, productsByKeyword } from '@/app/data'
+import { categories, mapConvexProduct, productsByKeyword, productsByCategory } from '@/lib/catalog'
+import { useConvexQuery } from '@/lib/convexFetch'
 import ProductCard from './ProductCard'
 
 const ITEMS_PER_PAGE = 24
 
 interface Props {
-  onAddToCart: (id: number, qty: number) => void
+  onAddToCart: (id: string, qty: number) => void
   initialSearch?: string
 }
 
 export default function ProductsSection({ onAddToCart, initialSearch = '' }: Props) {
+  const { data: rawProducts, loading } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
+  const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
   const [activeCategory, setActiveCategory] = useState('all')
   const [sortBy, setSortBy] = useState('featured')
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -25,8 +28,8 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
 
   const filtered = useMemo(() => {
     let base = searchQuery.trim()
-      ? productsByKeyword(searchQuery.trim())
-      : products.filter(p => activeCategory === 'all' || p.category === activeCategory)
+      ? productsByKeyword(products, searchQuery.trim())
+      : productsByCategory(products, activeCategory)
 
     return [...base].sort((a, b) => {
       if (sortBy === 'price-asc')  return a.price - b.price
@@ -110,7 +113,9 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
         </div>
 
         {/* Products grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#6b7280', fontSize: 14 }}>Loading catalog…</div>
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>🔍</div>
             <h3 style={{ fontFamily: '"Playfair Display", serif', fontSize: 22, color: '#14532d', marginBottom: 8 }}>No products found</h3>

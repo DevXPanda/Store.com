@@ -5,50 +5,48 @@ import bcrypt from 'bcryptjs'
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || ''
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'vegfru-dev-secret')
 
-const DEMO: Record<string, { password: string; name: string; role: string }> = {
-  'superadmin@vegfru.com': { password: 'superadmin123', name: 'Super Admin', role: 'superadmin' },
-  'admin@vegfru.com':      { password: 'admin123',      name: 'Admin User',  role: 'admin'      },
-}
-
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
     if (!email || !password) return NextResponse.json({ success: false, error: 'Fields required' }, { status: 400 })
+    if (!CONVEX_URL) {
+      return NextResponse.json({ success: false, error: 'NEXT_PUBLIC_CONVEX_URL is missing in admin-panel/.env.local' }, { status: 500 })
+    }
 
     let user: { id: string; name: string; email: string; role: string } | null = null
 
-    // Try Convex first
-    if (CONVEX_URL) {
-      try {
-        const res = await fetch(`${CONVEX_URL}/api/query`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'auth:getUserByEmail', args: { email } }),
-        })
-        const data = await res.json()
-        const convexUser = data.value
-        if (convexUser && ['admin', 'superadmin'].includes(convexUser.role) && convexUser.isActive) {
-          const valid = await bcrypt.compare(password, convexUser.passwordHash)
-          if (valid) {
-            user = { id: convexUser._id, name: convexUser.name, email: convexUser.email, role: convexUser.role }
-            // Update last login
-            await fetch(`${CONVEX_URL}/api/mutation`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: 'auth:updateLastLogin', args: { id: convexUser._id } }),
-            }).catch(() => {})
-          }
-        }
-      } catch {}
+    const ensureSeedRes = await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'adminAuth:ensureDefaultSuperAdmin', args: {} }),
+    })
+    if (!ensureSeedRes.ok) {
+      const errText = await ensureSeedRes.text()
+      return NextResponse.json({ success: false, error: `Convex adminAuth not ready: ${errText}` }, { status: 500 })
     }
 
-    // Demo fallback
-    if (!user) {
-      const demo = DEMO[email]
-      if (demo && demo.password === password) {
-        user = { id: `demo-${demo.role}`, name: demo.name, email, role: demo.role }
+    const res = await fetch(`${CONVEX_URL}/api/query`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'adminAuth:getAdminByEmail', args: { email } }),
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      return NextResponse.json({ success: false, error: `Failed to query admin: ${errText}` }, { status: 500 })
+    }
+
+    const data = await res.json()
+    const admin = data.value
+    if (admin && admin.role === 'admin' && admin.isActive) {
+      const valid = await bcrypt.compare(password, admin.passwordHash)
+      if (valid) {
+        user = { id: admin._id, name: admin.name, email: admin.email, role: admin.role }
+        await fetch(`${CONVEX_URL}/api/mutation`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'adminAuth:updateAdminLastLogin', args: { id: admin._id } }),
+        }).catch(() => {})
       }
     }
 
-    if (!user) return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 })
+    if (!user) return NextResponse.json({ success: false, error: 'Invalid credentials for admin panel' }, { status: 401 })
 
     const token = await new SignJWT({ userId: user.id, role: user.role, name: user.name })
       .setProtectedHeader({ alg: 'HS256' })

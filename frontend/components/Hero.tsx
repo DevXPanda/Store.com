@@ -72,15 +72,17 @@ export default function Hero() {
             <div className="reveal-up stagger-5 flex flex-wrap gap-6 pt-2">
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
-                  {['👩','👨','👩‍🦱','👴'].map((e, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full bg-green-100 border-2 border-white flex items-center justify-center text-sm">{e}</div>
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="w-8 h-8 rounded-full bg-green-100 border-2 border-white flex items-center justify-center">
+                      <Leaf className="w-4 h-4 text-forest-600" />
+                    </div>
                   ))}
                 </div>
                 <div>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />)}
                   </div>
-                  <span className="text-xs text-gray-500">2,400+ happy families</span>
+                  <span className="text-xs text-gray-500">Trusted by families across Delhi NCR</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-600">

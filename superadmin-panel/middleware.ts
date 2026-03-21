@@ -35,4 +35,4 @@ export async function middleware(req: NextRequest) {
   return NextResponse.redirect(new URL('/superadmin/login', req.url))
 }
 
-export const config = { matcher: ['/superadmin/:path*'] }
+export const config = { matcher: ['/superadmin', '/superadmin/:path*'] }

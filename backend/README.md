@@ -30,7 +30,7 @@ pending → confirmed → preparing → assigned → picked_up → out_for_deliv
 
 ### POST /api/auth/login
 ```json
-{ "email": "admin@vegfru.com", "password": "admin123" }
+{ "email": "real-user@yourdomain.com", "password": "your-password" }
 → { "success": true, "token": "jwt...", "user": { "id", "name", "email", "role" } }
 ```
 
@@ -59,8 +59,10 @@ pending → confirmed → preparing → assigned → picked_up → out_for_deliv
 
 | Function | Description |
 |----------|-------------|
-| `products.seedProducts` | Seed 8 demo products |
-| `auth.seedAdminAndDelivery` | Create admin + delivery demo accounts |
+| `products.seedProducts` | Disabled in production-safe mode |
+| `auth.seedAdminAndDelivery` | Disabled in production-safe mode |
+| `products.purgeDemoProducts` | Remove legacy demo products |
+| `auth.purgeDemoUsers` | Remove legacy demo users |
 | `orders.updateOrderStatus` | Change order status |
 | `orders.assignDeliveryBoy` | Assign delivery partner to order |
 | `orders.getAdminStats` | Dashboard stats (revenue, pending, etc.) |

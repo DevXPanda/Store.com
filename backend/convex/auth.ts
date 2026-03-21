@@ -135,31 +135,33 @@ export const getActivityLog = query({
 
 export const seedAdminAndDelivery = mutation({
   args: {},
-  handler: async (ctx) => {
-    // Real pre-computed bcrypt hashes (rounds=10)
-    const adminHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";     // admin123
-    const superHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";     // superadmin123
-    const deliveryHash = "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"; // delivery123
-    const customerHash = "$2a$10$TwT5h.qW4X3r7JvX3mYNVeQ3VkFO3AkKHvZ5dWKfpQDG8cKBp9tVO"; // customer123
+  handler: async () => {
+    return { seeded: 0, message: "Demo account seeding is disabled. Create real users via register/admin flows." };
+  },
+});
 
-    const users = [
-      { name:"Super Admin",  email:"superadmin@vegfru.com", passwordHash: superHash,    role:"superadmin" as const, phone:"9800000000" },
-      { name:"Admin User",   email:"admin@vegfru.com",      passwordHash: adminHash,    role:"admin"      as const, phone:"9800000001" },
-      { name:"Ravi Kumar",   email:"ravi@vegfru.com",       passwordHash: deliveryHash, role:"delivery"   as const, phone:"9876543210" },
-      { name:"Sunil Singh",  email:"sunil@vegfru.com",      passwordHash: deliveryHash, role:"delivery"   as const, phone:"9871234567" },
-      { name:"Mohan Das",    email:"mohan@vegfru.com",      passwordHash: deliveryHash, role:"delivery"   as const, phone:"9812345678" },
-      { name:"Priya Sharma", email:"customer@vegfru.com",   passwordHash: customerHash, role:"customer"   as const, phone:"9876543211" },
+export const purgeDemoUsers = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const demoEmails = [
+      "superadmin@vegfru.com",
+      "admin@vegfru.com",
+      "ravi@vegfru.com",
+      "sunil@vegfru.com",
+      "mohan@vegfru.com",
+      "customer@vegfru.com",
+      "delivery@vegfru.com",
     ];
 
-    let seeded = 0;
-    for (const u of users) {
-      const existing = await ctx.db.query("users").withIndex("by_email", q => q.eq("email", u.email)).first();
-      if (!existing) {
-        await ctx.db.insert("users", { ...u, address: undefined, isActive: true, createdAt: Date.now() });
-        seeded++;
+    let removed = 0;
+    for (const email of demoEmails) {
+      const user = await ctx.db.query("users").withIndex("by_email", q => q.eq("email", email)).first();
+      if (user) {
+        await ctx.db.delete(user._id);
+        removed++;
       }
     }
-    return { seeded, message: `Seeded ${seeded} users` };
+    return { removed, message: `Removed ${removed} demo users` };
   },
 });
 

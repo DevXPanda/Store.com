@@ -1,6 +1,25 @@
-import { stats } from '@/app/data'
+'use client'
+
+import { useConvexQuery } from '@/lib/convexFetch'
 
 export default function Stats() {
+  const { data } = useConvexQuery<{
+    productCount: number
+    ordersDelivered: number
+    customerCount: number
+  }>('publicHome:getPublicStats', {})
+
+  const c = data?.customerCount ?? 0
+  const p = data?.productCount ?? 0
+  const d = data?.ordersDelivered ?? 0
+
+  const stats = [
+    { value: c > 0 ? `${c.toLocaleString('en-IN')}+` : '—', label: 'Registered customers', emoji: '🏠' },
+    { value: p > 0 ? `${p}+` : '—', label: 'Products in catalog', emoji: '🌾' },
+    { value: '4–6hrs', label: 'Farm to door', emoji: '⚡' },
+    { value: d > 0 ? `${d.toLocaleString('en-IN')}+` : '—', label: 'Orders delivered', emoji: '❤️' },
+  ]
+
   return (
     <section className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

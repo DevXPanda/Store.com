@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, Phone } from 'lucide-react'
 import Link from 'next/link'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+import { uiTokens } from '@/app/ui-tokens'
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || ''
 
@@ -23,6 +26,7 @@ export default function TrackOrderPage() {
   const params = useParams()
   const router = useRouter()
   const orderId = params.orderId as string
+  const [cartCount, setCartCount] = useState(0)
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -51,27 +55,45 @@ export default function TrackOrderPage() {
     fetch_()
   }, [orderId])
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vegfru_cart')
+      if (saved) {
+        const cart = JSON.parse(saved)
+        setCartCount(cart.reduce((sum: number, item: any) => sum + item.qty, 0))
+      }
+    } catch {}
+  }, [])
+
   if (loading) return (
-    <div style={{ minHeight:'100vh', background:'#FEFAE0', display:'flex', alignItems:'center', justifyContent:'center', paddingTop:80 }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:48, animation:'bounce 1s infinite', marginBottom:12 }}>📦</div>
-        <div style={{ fontSize:14, color:'#16a34a' }}>Tracking your order...</div>
-        <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+    <>
+      <Navbar cartCount={cartCount} onCartClick={() => router.push('/')} />
+      <div style={{ minHeight:'100vh', background:'#FEFAE0', display:'flex', alignItems:'center', justifyContent:'center', paddingTop:120 }}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:48, animation:'bounce 1s infinite', marginBottom:12 }}>📦</div>
+          <div style={{ fontSize:14, color:'#16a34a' }}>Tracking your order...</div>
+          <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}`}</style>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 
   if (notFound) return (
-    <div style={{ minHeight:'100vh', background:'#FEFAE0', display:'flex', alignItems:'center', justifyContent:'center', padding:24, paddingTop:80 }}>
-      <div style={{ background:'white', borderRadius:20, padding:40, maxWidth:400, textAlign:'center', border:'1px solid #e5e7eb' }}>
-        <div style={{ fontSize:56, marginBottom:16 }}>🔍</div>
-        <h2 style={{ fontSize:20, fontWeight:700, color:'#111827', marginBottom:8 }}>Order not found</h2>
-        <p style={{ color:'#6b7280', fontSize:14, marginBottom:20 }}>Order #{orderId} could not be found. Check your confirmation email for the correct order ID.</p>
-        <Link href="/" style={{ background:'#14532d', color:'white', padding:'12px 28px', borderRadius:12, textDecoration:'none', fontSize:14, fontWeight:600 }}>
-          Back to Home
-        </Link>
+    <>
+      <Navbar cartCount={cartCount} onCartClick={() => router.push('/')} />
+      <div style={{ minHeight:'100vh', background:'#FEFAE0', display:'flex', alignItems:'center', justifyContent:'center', padding:24, paddingTop:120 }}>
+        <div style={{ background:'white', borderRadius:20, padding:40, maxWidth:400, textAlign:'center', border:'1px solid #e5e7eb' }}>
+          <div style={{ fontSize:56, marginBottom:16 }}>🔍</div>
+          <h2 style={{ fontSize:20, fontWeight:700, color:'#111827', marginBottom:8 }}>Order not found</h2>
+          <p style={{ color:'#6b7280', fontSize:14, marginBottom:20 }}>Order #{orderId} could not be found. Check your confirmation email for the correct order ID.</p>
+          <Link href="/" style={{ background:'#14532d', color:'white', padding:'12px 28px', borderRadius:12, textDecoration:'none', fontSize:14, fontWeight:600 }}>
+            Back to Home
+          </Link>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 
   const cfg = STATUS_CFG[order.status] || STATUS_CFG.pending
@@ -79,19 +101,21 @@ export default function TrackOrderPage() {
   const step = cfg.step
 
   return (
-    <div style={{ minHeight:'100vh', background:'#FEFAE0', paddingTop:80 }}>
-      <div style={{ maxWidth:640, margin:'0 auto', padding:'32px 20px' }}>
+    <>
+      <Navbar cartCount={cartCount} onCartClick={() => router.push('/')} />
+      <div style={{ minHeight:'100vh', background:'#FEFAE0', paddingTop:96 }}>
+        <div style={{ maxWidth:uiTokens.container.account, margin:'0 auto', padding:'32px 20px 64px' }}>
         <button onClick={() => router.back()} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'none', color:'#6b7280', cursor:'pointer', fontSize:14, marginBottom:28 }}>
           <ArrowLeft size={16}/> Back
         </button>
 
-        <div style={{ background:'white', borderRadius:20, padding:28, border:'1px solid #e5e7eb', marginBottom:16 }}>
+        <div style={{ background:'white', borderRadius:uiTokens.radius.panel, padding:28, border:'1px solid #e5e7eb', marginBottom:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:20 }}>
             <div style={{ width:52, height:52, background:cfg.bg, borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
               <StatusIcon size={24} color={cfg.color}/>
             </div>
             <div>
-              <h1 style={{ fontSize:20, fontWeight:700, color:'#111827', margin:0 }}>Order #{order._id?.slice(-8).toUpperCase()}</h1>
+              <h1 style={{ ...uiTokens.typography.pageTitle, color:'#111827', margin:0 }}>Order #{order._id?.slice(-8).toUpperCase()}</h1>
               <p style={{ margin:'4px 0 0', fontSize:13, color:'#6b7280' }}>Placed {new Date(order.createdAt).toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'short' })}</p>
             </div>
             <span style={{ marginLeft:'auto', background:cfg.bg, color:cfg.color, fontSize:12, fontWeight:700, padding:'4px 12px', borderRadius:20 }}>{cfg.label}</span>
@@ -145,7 +169,7 @@ export default function TrackOrderPage() {
 
         {/* ETA */}
         {!['delivered','cancelled'].includes(order.status) && (
-          <div style={{ background:'#14532d', color:'white', borderRadius:16, padding:'16px 20px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ background:'#14532d', color:'white', borderRadius:uiTokens.radius.panel, padding:'16px 20px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
             <Truck size={24} color="#86efac"/>
             <div>
               <div style={{ fontSize:15, fontWeight:700 }}>Estimated delivery in 4–6 hours</div>
@@ -155,14 +179,16 @@ export default function TrackOrderPage() {
         )}
 
         {/* Help */}
-        <div style={{ background:'white', borderRadius:16, padding:'16px 20px', border:'1px solid #e5e7eb', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ background:'white', borderRadius:uiTokens.radius.panel, padding:'16px 20px', border:'1px solid #e5e7eb', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ fontSize:14, color:'#374151' }}>Need help with this order?</div>
           <a href="https://wa.me/919800000001" target="_blank" rel="noreferrer"
-            style={{ background:'#25d366', color:'white', padding:'8px 16px', borderRadius:10, textDecoration:'none', fontSize:13, fontWeight:600 }}>
+            style={{ background:'#25d366', color:'white', padding:'10px 18px', borderRadius:uiTokens.radius.control, textDecoration:'none', fontSize:14, fontWeight:600 }}>
             WhatsApp Us
           </a>
         </div>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }

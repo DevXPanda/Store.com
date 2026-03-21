@@ -9,13 +9,6 @@ function getJWTSecret() {
   return new TextEncoder().encode(s || 'vegfru-dev-secret-key-2026')
 }
 
-const DEMO_USERS = [
-  { id:'demo-superadmin', email:'superadmin@vegfru.com', password:'superadmin123', name:'Super Admin',  role:'superadmin' as const },
-  { id:'demo-admin',      email:'admin@vegfru.com',      password:'admin123',      name:'Admin User',   role:'admin'      as const },
-  { id:'demo-customer',   email:'customer@vegfru.com',   password:'customer123',   name:'Priya Sharma', role:'customer'   as const },
-  { id:'demo-ravi',       email:'ravi@vegfru.com',       password:'delivery123',   name:'Ravi Kumar',   role:'delivery'   as const },
-]
-
 async function tryConvexLogin(email: string, password: string) {
   if (!CONVEX_URL) return null
   try {
@@ -43,14 +36,20 @@ async function tryConvexLogin(email: string, password: string) {
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
-    if (!email || !password) return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 })
-
-    let userPayload = await tryConvexLogin(email, password)
-
-    if (!userPayload) {
-      const demo = DEMO_USERS.find(u => u.email === email && u.password === password)
-      if (demo) userPayload = { id: demo.id, name: demo.name, email: demo.email, role: demo.role }
+    const normalizedEmail = String(email ?? '').toLowerCase().trim()
+    const normalizedPassword = String(password ?? '')
+    if (!normalizedEmail || !normalizedPassword) {
+      return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 })
     }
+
+    if (!CONVEX_URL) {
+      return NextResponse.json(
+        { success: false, error: 'Auth service is not configured. Add NEXT_PUBLIC_CONVEX_URL in frontend/.env.local and restart.' },
+        { status: 500 }
+      )
+    }
+
+    const userPayload = await tryConvexLogin(normalizedEmail, normalizedPassword)
 
     if (!userPayload) return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 })
 

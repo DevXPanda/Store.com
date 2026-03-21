@@ -2,15 +2,17 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Star, Plus, Check, Heart } from 'lucide-react'
-import { Product } from '@/app/data'
+import type { CatalogProduct } from '@/lib/catalog'
 
-export default function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: (id: number, qty: number) => void }) {
+export default function ProductCard({ product, onAddToCart }: { product: CatalogProduct; onAddToCart: (id: string, qty: number) => void }) {
   const router = useRouter()
   const [added, setAdded] = useState(false)
   const [liked, setLiked] = useState(false)
   const [qty, setQty] = useState(1)
   const [imgErr, setImgErr] = useState(false)
-  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const discount = product.originalPrice > 0
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0
   const isLowStock = product.stock < 10
 
   const handleAdd = (e: React.MouseEvent) => {

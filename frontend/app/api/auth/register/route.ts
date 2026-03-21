@@ -23,21 +23,33 @@ export async function POST(req: NextRequest) {
     const bcrypt = await import('bcryptjs')
     const passwordHash = await bcrypt.hash(password.trim(), 10)
 
-    let userId = `guest_${Date.now()}`
+    if (!CONVEX_URL) {
+      return NextResponse.json(
+        { success: false, error: 'Auth service is not configured. Add NEXT_PUBLIC_CONVEX_URL in frontend/.env.local and restart.' },
+        { status: 500 }
+      )
+    }
 
-    if (CONVEX_URL) {
-      try {
-        const res = await fetch(`${CONVEX_URL}/api/mutation`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'auth:createUser', args: { name: name.trim(), email: email.toLowerCase().trim(), passwordHash, role: 'customer', phone } }),
-        })
-        const data = await res.json()
-        if (data.errorMessage?.includes('already registered')) {
-          return NextResponse.json({ success: false, error: 'This email is already registered. Please sign in.' }, { status: 409 })
-        }
-        if (data.value) userId = data.value
-      } catch {}
+    let userId = ''
+    try {
+      const res = await fetch(`${CONVEX_URL}/api/mutation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'auth:createUser', args: { name: name.trim(), email: email.toLowerCase().trim(), passwordHash, role: 'customer', phone } }),
+      })
+      if (!res.ok) {
+        return NextResponse.json({ success: false, error: 'Could not create account. Please try again.' }, { status: 502 })
+      }
+      const data = await res.json()
+      if (data.errorMessage?.includes('already registered')) {
+        return NextResponse.json({ success: false, error: 'This email is already registered. Please sign in.' }, { status: 409 })
+      }
+      if (!data.value) {
+        return NextResponse.json({ success: false, error: 'Could not create account. Please try again.' }, { status: 502 })
+      }
+      userId = data.value
+    } catch {
+      return NextResponse.json({ success: false, error: 'Could not connect to auth service. Please try again.' }, { status: 502 })
     }
 
     const token = await new SignJWT({ userId, role: 'customer', name: name.trim() })

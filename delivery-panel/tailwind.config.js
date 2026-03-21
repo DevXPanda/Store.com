@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -7,12 +8,27 @@ module.exports = {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        display: ['Playfair Display', 'serif'],
-        body: ['DM Sans', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-      },
       colors: {
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
+        card: 'var(--card)',
+        'card-foreground': 'var(--card-foreground)',
+        muted: 'var(--muted)',
+        'muted-foreground': 'var(--muted-foreground)',
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
+        primary: 'var(--primary)',
+        'primary-foreground': 'var(--primary-foreground)',
+        accent: 'var(--accent)',
+        'accent-foreground': 'var(--accent-foreground)',
+        destructive: 'var(--destructive)',
+        'destructive-foreground': 'var(--destructive-foreground)',
+        popover: 'var(--popover)',
+        'popover-foreground': 'var(--popover-foreground)',
+        header: 'var(--header)',
+        'header-foreground': 'var(--header-foreground)',
+        'header-muted': 'var(--header-muted)',
         forest: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -31,6 +47,11 @@ module.exports = {
           warm: '#F4A261',
           deep: '#E76F51',
         },
+      },
+      fontFamily: {
+        display: ['Playfair Display', 'serif'],
+        body: ['DM Sans', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       backgroundImage: {
         'leaf-pattern': "url('/leaf-bg.svg')",

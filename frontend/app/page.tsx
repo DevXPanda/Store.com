@@ -15,7 +15,7 @@ import Footer from '@/components/Footer'
 import CartSidebar from '@/components/CartSidebar'
 import AIAssistant from '@/components/AIAssistant'
 
-interface CartItem { id: number; qty: number }
+interface CartItem { id: string; qty: number }
 
 function HomeContent() {
   const searchParams = useSearchParams()
@@ -42,7 +42,7 @@ function HomeContent() {
 
   const cartCount = cartItems.reduce((s, i) => s + i.qty, 0)
 
-  const handleAddToCart = (id: number, qty: number) => {
+  const handleAddToCart = (id: string, qty: number) => {
     setCartItems(prev => {
       const exists = prev.find(i => i.id === id)
       const updated = exists
@@ -54,7 +54,7 @@ function HomeContent() {
     setCartOpen(true)
   }
 
-  const handleRemove = (id: number) => {
+  const handleRemove = (id: string) => {
     setCartItems(prev => {
       const updated = prev.filter(i => i.id !== id)
       localStorage.setItem('vegfru_cart', JSON.stringify(updated))
@@ -62,7 +62,7 @@ function HomeContent() {
     })
   }
 
-  const handleUpdateQty = (id: number, qty: number) => {
+  const handleUpdateQty = (id: string, qty: number) => {
     setCartItems(prev => {
       const updated = prev.map(i => i.id === id ? { ...i, qty } : i)
       localStorage.setItem('vegfru_cart', JSON.stringify(updated))

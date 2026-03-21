@@ -65,6 +65,7 @@ export const placeOrder = mutation({
     notes: v.optional(v.string()),
     razorpayOrderId: v.optional(v.string()),
     items: v.array(v.object({
+      productId: v.optional(v.id("products")),
       productName: v.string(),
       productEmoji: v.string(),
       productImage: v.optional(v.string()),
@@ -83,14 +84,22 @@ export const placeOrder = mutation({
       updatedAt: Date.now(),
     });
     for (const item of items) {
-      await ctx.db.insert("orderItems", { orderId, ...item });
+      await ctx.db.insert("orderItems", {
+        orderId,
+        productId: item.productId,
+        productName: item.productName,
+        productEmoji: item.productEmoji,
+        productImage: item.productImage,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      });
     }
-    // Deduct stock for each product ordered
     for (const item of items) {
       if (item.productId) {
-        const product = await ctx.db.get(item.productId as any);
+        const product = await ctx.db.get(item.productId);
         if (product && product.stock >= item.quantity) {
-          await ctx.db.patch(item.productId as any, {
+          await ctx.db.patch(item.productId, {
             stock: product.stock - item.quantity,
             updatedAt: Date.now(),
           });

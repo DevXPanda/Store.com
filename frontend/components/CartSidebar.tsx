@@ -1,22 +1,25 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, ShoppingBag, Trash2, ArrowRight, Leaf, Plus, Minus } from 'lucide-react'
-import { products } from '@/app/data'
+import { mapConvexProduct } from '@/lib/catalog'
+import { useConvexQuery } from '@/lib/convexFetch'
 
-interface CartItem { id: number; qty: number }
+interface CartItem { id: string; qty: number }
 
 interface CartSidebarProps {
   isOpen: boolean
   onClose: () => void
   items: CartItem[]
-  onRemove: (id: number) => void
-  onUpdateQty: (id: number, qty: number) => void
+  onRemove: (id: string) => void
+  onUpdateQty: (id: string, qty: number) => void
 }
 
 export default function CartSidebar({ isOpen, onClose, items, onRemove, onUpdateQty }: CartSidebarProps) {
   const router = useRouter()
+  const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
+  const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
 
   const cartProducts = items.map(item => ({
     ...item, product: products.find(p => p.id === item.id)!,

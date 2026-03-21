@@ -2,6 +2,66 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  admins: defineTable({
+    name: v.string(),
+    email: v.string(),
+    passwordHash: v.string(),
+    role: v.union(v.literal("superadmin"), v.literal("admin")),
+    isActive: v.boolean(),
+    phone: v.optional(v.string()),
+    createdBy: v.optional(v.id("admins")),
+    lastLogin: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_phone", ["phone"])
+    .index("by_role", ["role"]),
+
+  /** Submitted onboarding / partner-style profile tied to phone before or after admin link. */
+  adminOnboardingApplications: defineTable({
+    phone: v.string(),
+    adminId: v.optional(v.id("admins")),
+    name: v.string(),
+    email: v.string(),
+    dateOfBirth: v.string(),
+    pan: v.string(),
+    pincode: v.string(),
+    cityCurrent: v.string(),
+    cityApplying: v.string(),
+    cityResidencyYears: v.string(),
+    educationLevel: v.string(),
+    instituteName: v.optional(v.string()),
+    occupation: v.string(),
+    industry: v.string(),
+    workExperienceYears: v.string(),
+    roleDescription: v.string(),
+    hearAbout: v.string(),
+    programUnderstanding: v.string(),
+    whyPartner: v.string(),
+    dayToDayInvolvement: v.string(),
+    timeCommitment: v.string(),
+    familyIncome: v.string(),
+    investmentAmount: v.string(),
+    fundingPlan: v.string(),
+    relatedToEmployee: v.union(v.literal("yes"), v.literal("no")),
+    providesToVegFru: v.union(v.literal("yes"), v.literal("no")),
+    partnerCount: v.string(),
+    submittedAt: v.number(),
+    status: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("approved"),
+        v.literal("rejected")
+      )
+    ),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("admins")),
+    rejectionReason: v.optional(v.string()),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_admin", ["adminId"])
+    .index("by_status", ["status"]),
+
   users: defineTable({
     name: v.string(),
     email: v.string(),
@@ -20,7 +80,33 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_email", ["email"])
-    .index("by_role", ["role"]),
+    .index("by_role", ["role"])
+    .index("by_phone", ["phone"]),
+
+  /** Blinkit-style rider signup — superadmin approves, then partner logs in with phone + OTP. */
+  deliveryPartnerApplications: defineTable({
+    name: v.string(),
+    phone: v.string(),
+    city: v.string(),
+    submittedAt: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("admins")),
+    rejectionReason: v.optional(v.string()),
+    userId: v.optional(v.id("users")),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_status", ["status"]),
+
+  deliveryOtps: defineTable({
+    phone: v.string(),
+    code: v.string(),
+    expiresAt: v.number(),
+  }).index("by_phone", ["phone"]),
 
   products: defineTable({
     name: v.string(),
@@ -141,4 +227,16 @@ export default defineSchema({
     details: v.optional(v.string()),
     timestamp: v.number(),
   }).index("by_timestamp", ["timestamp"]),
+
+  testimonials: defineTable({
+    name: v.string(),
+    location: v.string(),
+    text: v.string(),
+    rating: v.number(),
+    avatarEmoji: v.string(),
+    verified: v.boolean(),
+    isActive: v.boolean(),
+    sortOrder: v.number(),
+    createdAt: v.number(),
+  }).index("by_active", ["isActive"]),
 });

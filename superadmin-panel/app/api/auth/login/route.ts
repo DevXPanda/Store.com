@@ -9,35 +9,41 @@ export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
     if (!email || !password) return NextResponse.json({ success: false, error: 'Fields required' }, { status: 400 })
+    if (!CONVEX_URL) {
+      return NextResponse.json({ success: false, error: 'NEXT_PUBLIC_CONVEX_URL is missing in superadmin-panel env' }, { status: 500 })
+    }
 
     let user: { id: string; name: string; email: string; role: string } | null = null
 
-    // Try Convex DB
-    if (CONVEX_URL) {
-      try {
-        const res = await fetch(`${CONVEX_URL}/api/query`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'auth:getUserByEmail', args: { email } }),
-        })
-        const data = await res.json()
-        const u = data.value
-        if (u && u.role === 'superadmin' && u.isActive) {
-          const valid = await bcrypt.compare(password, u.passwordHash)
-          if (valid) {
-            user = { id: u._id, name: u.name, email: u.email, role: 'superadmin' }
-            // Log the login
-            await fetch(`${CONVEX_URL}/api/mutation`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: 'auth:updateLastLogin', args: { id: u._id } }),
-            }).catch(() => {})
-          }
-        }
-      } catch {}
+    const ensureSeedRes = await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'adminAuth:ensureDefaultSuperAdmin', args: {} }),
+    })
+    if (!ensureSeedRes.ok) {
+      const errText = await ensureSeedRes.text()
+      return NextResponse.json({ success: false, error: `Convex adminAuth not ready: ${errText}` }, { status: 500 })
     }
 
-    // Demo fallback (superadmin only)
-    if (!user && email === 'superadmin@vegfru.com' && password === 'superadmin123') {
-      user = { id: 'demo-superadmin', name: 'Super Admin', email, role: 'superadmin' }
+    const res = await fetch(`${CONVEX_URL}/api/query`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'adminAuth:getAdminByEmail', args: { email } }),
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      return NextResponse.json({ success: false, error: `Failed to query superadmin: ${errText}` }, { status: 500 })
+    }
+
+    const data = await res.json()
+    const admin = data.value
+    if (admin && admin.role === 'superadmin' && admin.isActive) {
+      const valid = await bcrypt.compare(password, admin.passwordHash)
+      if (valid) {
+        user = { id: admin._id, name: admin.name, email: admin.email, role: 'superadmin' }
+        await fetch(`${CONVEX_URL}/api/mutation`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'adminAuth:updateAdminLastLogin', args: { id: admin._id } }),
+        }).catch(() => {})
+      }
     }
 
     if (!user) {
@@ -49,14 +55,6 @@ export async function POST(req: NextRequest) {
       .setExpirationTime('8h')  // Shorter expiry for superadmin
       .setIssuedAt()
       .sign(JWT_SECRET)
-
-    // Log to activity
-    if (CONVEX_URL) {
-      await fetch(`${CONVEX_URL}/api/mutation`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: 'auth:getActivityLog', args: { limit: 1 } }),
-      }).catch(() => {})
-    }
 
     return NextResponse.json({ success: true, token, user })
   } catch (err: any) {

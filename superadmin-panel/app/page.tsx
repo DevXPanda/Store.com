@@ -1,2 +1,5 @@
-import { redirect } from 'next/navigation'
-export default function Root() { redirect('/superadmin') }
+import PanelHome from "@/components/PanelHome";
+
+export default function Root() {
+  return <PanelHome />;
+}

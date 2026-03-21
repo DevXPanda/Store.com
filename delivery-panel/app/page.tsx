@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import PanelHome from "@/components/PanelHome";
+
 export default function RootPage() {
-  redirect("/delivery");
+  return <PanelHome />;
 }

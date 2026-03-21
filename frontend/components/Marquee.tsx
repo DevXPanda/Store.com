@@ -1,7 +1,11 @@
-import { marqueeItems } from '@/app/data'
+'use client'
+
+import { useConvexQuery } from '@/lib/convexFetch'
 
 export default function Marquee() {
-  const doubled = [...marqueeItems, ...marqueeItems]
+  const { data: items } = useConvexQuery<string[]>('publicHome:getMarqueeItems', {})
+  const list = items && items.length > 0 ? items : ['Farm-fresh produce · Delhi NCR · VegFru']
+  const doubled = [...list, ...list]
 
   return (
     <div className="bg-forest-800 py-3 overflow-hidden relative">

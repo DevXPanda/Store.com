@@ -1,0 +1,7 @@
+# Dependencies and Next.js build output (keep locally; do not commit)
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/.turbo/
+*.tsbuildinfo

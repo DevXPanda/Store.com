@@ -1,19 +1,75 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, User, Phone, Mail, MapPin, Save, LogOut, Package, Loader2, CheckCircle, Edit2 } from 'lucide-react'
+import { ArrowLeft, User, Phone, Mail, MapPin, Save, LogOut, Package, Loader2, CheckCircle, Edit2, LucideIcon } from 'lucide-react'
 import { useAuth } from '@/app/AuthContext'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || ''
+interface CartItem { id: number; qty: number }
+
+interface ProfileFieldProps {
+  icon: LucideIcon
+  label: string
+  value: string
+  field: keyof FormState
+  editing: boolean
+  editable?: boolean
+  readOnly?: boolean
+  onChange: (field: keyof FormState, value: string) => void
+}
+
+interface FormState {
+  name: string
+  phone: string
+  address: string
+  city: string
+  pincode: string
+}
+
+function ProfileField({
+  icon: Icon,
+  label,
+  value,
+  field,
+  editing,
+  editable = true,
+  readOnly = false,
+  onChange,
+}: ProfileFieldProps) {
+  return (
+    <div className="flex items-start gap-3 border-b border-gray-100 py-4">
+      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-green-50">
+        <Icon size={16} color="#16a34a" />
+      </div>
+      <div className="flex-1">
+        <div className="mb-1 text-[11px] uppercase tracking-wide text-gray-400">{label}</div>
+        {editing && editable && !readOnly ? (
+          <input
+            value={value}
+            onChange={(e) => onChange(field, e.target.value)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-green-700"
+          />
+        ) : (
+          <div className={`text-sm font-medium ${readOnly ? 'text-gray-400' : 'text-gray-900'}`}>
+            {value || 'Not set'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', city: 'Faridabad', pincode: '121001' })
+  const [form, setForm] = useState<FormState>({ name: '', phone: '', address: '', city: 'Faridabad', pincode: '121001' })
   const [orderCount, setOrderCount] = useState<number | null>(null)
 
   useEffect(() => {
@@ -33,7 +89,16 @@ export default function ProfilePage() {
     }
   }, [user, router])
 
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem('vegfru_cart')
+      if (savedCart) setCartItems(JSON.parse(savedCart))
+    } catch {}
+  }, [])
+
   if (!user) return null
+
+  const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0)
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Name is required'); return }
@@ -51,110 +116,154 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
+  const onFieldChange = (field: keyof FormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
   const initials = user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 
-  const Field = ({ icon: Icon, label, value, field, editable = true, readOnly = false }: any) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 0', borderBottom: '1px solid #f3f4f6' }}>
-      <div style={{ width: 36, height: 36, background: '#f0fdf4', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-        <Icon size={16} color="#16a34a" />
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-        {editing && editable && !readOnly ? (
-          <input value={form[field as keyof typeof form] || value} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-            style={{ width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', background: '#fafafa' }}
-            onFocus={e => e.target.style.borderColor = '#16a34a'}
-            onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
-        ) : (
-          <div style={{ fontSize: 14, fontWeight: 500, color: readOnly ? '#9ca3af' : '#111827' }}>{value || 'Not set'}</div>
-        )}
-      </div>
-    </div>
-  )
-
   return (
-    <div style={{ minHeight: '100vh', background: '#FEFAE0', paddingTop: 80 }}>
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 20px' }}>
-        <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 14, marginBottom: 28 }}>
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        {/* Profile Header */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 24, marginBottom: 16, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ width: 72, height: 72, background: 'linear-gradient(135deg, #14532d, #166534)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#14532d', margin: 0 }}>{user.name}</h1>
-            <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>{user.email}</p>
-            <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>
-              {user.role?.toUpperCase()}
-            </span>
-          </div>
-          {orderCount !== null && (
-            <div style={{ textAlign: 'center', background: '#f0fdf4', borderRadius: 14, padding: '12px 18px' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#14532d' }}>{orderCount}</div>
-              <div style={{ fontSize: 11, color: '#6b7280' }}>Orders</div>
-            </div>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <button onClick={() => router.push('/orders')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: 14, cursor: 'pointer', textAlign: 'left' }}>
-            <div style={{ width: 40, height: 40, background: '#f0fdf4', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Package size={18} color="#16a34a" />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>My Orders</div>
-              <div style={{ fontSize: 11, color: '#6b7280' }}>Track deliveries</div>
-            </div>
+    <>
+      <Navbar cartCount={cartCount} onCartClick={() => router.push('/')} />
+      <div className="min-h-screen bg-[#FEFAE0] pt-24">
+        <div className="mx-auto max-w-4xl px-5 pb-16 pt-8">
+          <button
+            onClick={() => router.back()}
+            className="mb-7 flex items-center gap-2 text-sm text-gray-500 transition hover:text-forest-700"
+          >
+            <ArrowLeft size={16} /> Back
           </button>
-          <button onClick={() => { logout(); router.push('/') }} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px', background: 'white', border: '1px solid #fecaca', borderRadius: 14, cursor: 'pointer', textAlign: 'left' }}>
-            <div style={{ width: 40, height: 40, background: '#fef2f2', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LogOut size={18} color="#dc2626" />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>Sign Out</div>
-              <div style={{ fontSize: 11, color: '#6b7280' }}>Log out safely</div>
-            </div>
-          </button>
-        </div>
 
-        {/* Profile Form */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 24, border: '1px solid #e5e7eb' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <User size={18} color="#14532d" /> Personal Information
-            </h2>
-            {!editing ? (
-              <button onClick={() => setEditing(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
-                <Edit2 size={13} /> Edit
-              </button>
-            ) : (
-              <button onClick={() => setEditing(false)} style={{ background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer' }}>
-                Cancel
-              </button>
+          <div className="mb-4 flex items-center gap-4 rounded-3xl border border-gray-200 bg-white p-6">
+            <div className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-forest-800 to-green-700 text-2xl font-bold text-white">
+              {initials}
+            </div>
+            <div className="flex-1">
+              <h1 className="m-0 text-2xl font-bold text-forest-800">{user.name}</h1>
+              <p className="mt-1 text-sm text-gray-500">{user.email}</p>
+              <span className="mt-2 inline-block rounded-full bg-green-100 px-2 py-1 text-[10px] font-semibold text-green-700">
+                {user.role?.toUpperCase()}
+              </span>
+            </div>
+            {orderCount !== null && (
+              <div className="rounded-2xl bg-green-50 px-5 py-3 text-center">
+                <div className="text-2xl font-bold text-forest-800">{orderCount}</div>
+                <div className="text-xs text-gray-500">Orders</div>
+              </div>
             )}
           </div>
 
-          {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13, color: '#b91c1c' }}>{error}</div>}
-
-          <Field icon={User}  label="Full Name"    value={form.name || user.name} field="name" />
-          <Field icon={Mail}  label="Email"        value={user.email} field="email" readOnly />
-          <Field icon={Phone} label="Phone"        value={form.phone} field="phone" />
-          <Field icon={MapPin} label="Default City" value={form.city} field="city" />
-
-          {editing && (
-            <button onClick={handleSave} disabled={saving}
-              style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8, background: saved ? '#22c55e' : '#14532d', color: 'white', border: 'none', borderRadius: 12, padding: '12px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              {saving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : saved ? <CheckCircle size={16} /> : <Save size={16} />}
-              {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              onClick={() => router.push('/orders')}
+              className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 text-left transition hover:border-green-200 hover:bg-green-50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+                <Package size={18} color="#16a34a" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-gray-900">My Orders</div>
+                <div className="text-xs text-gray-500">Track deliveries</div>
+              </div>
             </button>
-          )}
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <button
+              onClick={() => { logout(); router.push('/') }}
+              className="flex items-center gap-3 rounded-2xl border border-red-200 bg-white p-4 text-left transition hover:bg-red-50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+                <LogOut size={18} color="#dc2626" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-red-600">Sign Out</div>
+                <div className="text-xs text-gray-500">Log out safely</div>
+              </div>
+            </button>
+          </div>
+
+          <div className="rounded-3xl border border-gray-200 bg-white p-6">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="m-0 flex items-center gap-2 text-lg font-semibold text-gray-900">
+                <User size={18} color="#14532d" /> Personal Information
+              </h2>
+              {!editing ? (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-600 transition hover:bg-green-100"
+                >
+                  <Edit2 size={13} /> Edit
+                </button>
+              ) : (
+                <button
+                  onClick={() => setEditing(false)}
+                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-500 transition hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+
+            {error && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            <ProfileField
+              icon={User}
+              label="Full Name"
+              value={form.name || user.name}
+              field="name"
+              editing={editing}
+              onChange={onFieldChange}
+            />
+            <ProfileField
+              icon={Mail}
+              label="Email"
+              value={user.email}
+              field="name"
+              editing={editing}
+              readOnly
+              onChange={onFieldChange}
+            />
+            <ProfileField
+              icon={Phone}
+              label="Phone"
+              value={form.phone}
+              field="phone"
+              editing={editing}
+              onChange={onFieldChange}
+            />
+            <ProfileField
+              icon={MapPin}
+              label="Default City"
+              value={form.city}
+              field="city"
+              editing={editing}
+              onChange={onFieldChange}
+            />
+
+            {editing && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className={`mt-5 flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white transition ${
+                  saved ? 'bg-green-500' : 'bg-forest-800 hover:bg-green-800'
+                }`}
+              >
+                {saving ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : saved ? (
+                  <CheckCircle size={16} />
+                ) : (
+                  <Save size={16} />
+                )}
+                {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }

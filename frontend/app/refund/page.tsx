@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import type { Metadata } from 'next'
+import Footer from '@/components/Footer'
 export const metadata: Metadata = { title: 'Refund Policy' }
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -12,12 +13,13 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 
 export default function RefundPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#FEFAE0', paddingTop: 80 }}>
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 20px' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontSize: 14, marginBottom: 28 }}>
-          <ArrowLeft size={16} /> Back to home
-        </Link>
-        <div style={{ background: 'white', borderRadius: 20, padding: '40px', border: '1px solid #e5e7eb' }}>
+    <>
+      <div style={{ minHeight: '100vh', background: '#FEFAE0', paddingTop: 80 }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 20px 64px' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6b7280', textDecoration: 'none', fontSize: 14, marginBottom: 28 }}>
+            <ArrowLeft size={16} /> Back to home
+          </Link>
+          <div style={{ background: 'white', borderRadius: 20, padding: '40px', border: '1px solid #e5e7eb' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>↩️</div>
           <h1 style={{ fontFamily: 'serif', fontSize: 32, fontWeight: 700, color: '#14532d', marginBottom: 8 }}>Refund & Return Policy</h1>
           <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 32 }}>Last updated: January 1, 2026 · We stand behind every order.</p>
@@ -79,8 +81,10 @@ export default function RefundPage() {
             <p>📱 WhatsApp: <a href="https://wa.me/919800000001" style={{ color: '#16a34a' }}>+91 98000 00001</a> (9 AM – 8 PM)</p>
             <p>📞 Phone: <a href="tel:+919800000001" style={{ color: '#16a34a' }}>+91 98000 00001</a></p>
           </Section>
+          </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }

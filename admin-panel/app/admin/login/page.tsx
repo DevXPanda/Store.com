@@ -1,14 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Eye, EyeOff, Loader2, ShieldCheck, Shield } from "lucide-react";
-
-const DEMO_ACCOUNTS = [
-  { label:"Super Admin", email:"superadmin@vegfru.com", password:"superadmin123", role:"superadmin", color:"#a855f7" },
-  { label:"Admin",       email:"admin@vegfru.com",      password:"admin123",      role:"admin",      color:"#3b82f6" },
-];
+import Link from "next/link";
+import { AlertCircle, Eye, EyeOff, Loader2, Shield } from "lucide-react";
+import { SignInModal } from "@/components/SignInModal";
 
 export default function AdminLogin() {
+  const [phoneModal, setPhoneModal] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,14 +25,14 @@ export default function AdminLogin() {
       });
       const data = await res.json();
 
-      if (data.success && data.user && ["admin","superadmin"].includes(data.user.role)) {
+      if (data.success && data.user && data.user.role === "admin") {
         // Set cookies for middleware
         document.cookie = `vegfru_token=${data.token};path=/;max-age=${7*86400};samesite=strict`;
         document.cookie = `vegfru_user=${JSON.stringify(data.user)};path=/;max-age=${7*86400};samesite=strict`;
         localStorage.setItem("vegfru_admin", JSON.stringify(data.user));
         router.push("/admin");
       } else {
-        setError(data.error || "Invalid credentials. Try demo accounts below.");
+        setError(data.error || "Invalid credentials. Admin account required.");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -44,9 +42,27 @@ export default function AdminLogin() {
 
   return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#020408 0%,#0a0d14 50%,#0d1a0f 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+      <SignInModal open={phoneModal} onClose={() => setPhoneModal(false)} />
       <div style={{ position:"fixed", top:"30%", left:"50%", transform:"translateX(-50%)", width:600, height:300, background:"radial-gradient(ellipse,rgba(21,128,61,0.12) 0%,transparent 70%)", pointerEvents:"none" }} />
 
       <div style={{ width:"100%", maxWidth:420, position:"relative", zIndex:1 }}>
+        <div style={{ textAlign:"center", marginBottom:18 }}>
+          <Link
+            href="/"
+            style={{ fontSize:13, color:"rgba(74,222,128,0.9)", textDecoration:"none", fontWeight:500 }}
+          >
+            ← Welcome page
+          </Link>
+          <div style={{ marginTop:10 }}>
+            <button
+              type="button"
+              onClick={() => setPhoneModal(true)}
+              style={{ fontSize:13, color:"#4ade80", background:"rgba(74,222,128,0.12)", border:"1px solid rgba(74,222,128,0.35)", borderRadius:10, padding:"8px 14px", cursor:"pointer", fontWeight:600 }}
+            >
+              Sign in with phone (Twilio SMS)
+            </button>
+          </div>
+        </div>
         <div style={{ background:"rgba(17,24,39,0.85)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:24, backdropFilter:"blur(20px)", overflow:"hidden" }}>
           {/* Header */}
           <div style={{ padding:"32px 32px 24px", background:"linear-gradient(135deg,rgba(21,128,61,0.15),rgba(22,101,52,0.08))", borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
@@ -58,7 +74,7 @@ export default function AdminLogin() {
               </div>
             </div>
             <h1 style={{ fontSize:18, fontWeight:600, color:"#f1f5f9", margin:0 }}>Welcome back</h1>
-            <p style={{ fontSize:13, color:"rgba(255,255,255,0.35)", margin:"6px 0 0" }}>Sign in to manage your store</p>
+            <p style={{ fontSize:13, color:"rgba(255,255,255,0.35)", margin:"6px 0 0" }}>Sign in with admin account only</p>
           </div>
 
           <div style={{ padding:28 }}>
@@ -102,25 +118,12 @@ export default function AdminLogin() {
           </div>
         </div>
 
-        {/* Demo accounts */}
-        <div style={{ marginTop:14, background:"rgba(17,24,39,0.6)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:16, padding:16, backdropFilter:"blur(10px)" }}>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,0.25)", fontFamily:"monospace", letterSpacing:2, textTransform:"uppercase", marginBottom:10 }}>Demo Accounts</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {DEMO_ACCOUNTS.map(a => (
-              <button key={a.role} onClick={() => setForm({ email:a.email, password:a.password })}
-                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, cursor:"pointer", textAlign:"left", width:"100%", transition:"all 0.15s" }}
-                onMouseEnter={e => { (e.currentTarget as any).style.background=`${a.color}10`; (e.currentTarget as any).style.borderColor=`${a.color}30` }}
-                onMouseLeave={e => { (e.currentTarget as any).style.background="rgba(255,255,255,0.03)"; (e.currentTarget as any).style.borderColor="rgba(255,255,255,0.06)" }}>
-                <div style={{ width:28, height:28, background:`${a.color}20`, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                  {a.role === "superadmin" ? <ShieldCheck size={13} color={a.color} /> : <Shield size={13} color={a.color} />}
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:a.color }}>{a.label}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", fontFamily:"monospace" }}>{a.email} / {a.password}</div>
-                </div>
-                <div style={{ fontSize:10, color:"rgba(255,255,255,0.2)" }}>↑ Click</div>
-              </button>
-            ))}
+        <div style={{ marginTop:14, background:"rgba(17,24,39,0.6)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:16, padding:16, backdropFilter:"blur(10px)", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:28, height:28, background:"rgba(59,130,246,0.2)", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <Shield size={13} color="#60a5fa" />
+          </div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>
+            Superadmin login has moved to `superadmin-panel`.
           </div>
         </div>
 

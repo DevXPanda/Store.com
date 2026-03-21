@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, CreditCard, Truck, CheckCircle, Loader2, ShieldCheck, Tag, Zap } from 'lucide-react'
-import { products } from '@/app/data'
+import { mapConvexProduct } from '@/lib/catalog'
+import { useConvexQuery } from '@/lib/convexFetch'
 import { useAuth } from '@/app/AuthContext'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+import { uiTokens } from '@/app/ui-tokens'
 
-interface CartItem { id: number; qty: number }
+interface CartItem { id: string; qty: number }
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || ''
 
@@ -26,6 +30,8 @@ declare global { interface Window { Razorpay: any } }
 export default function CheckoutPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
+  const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [step, setStep] = useState<'address' | 'payment' | 'success'>('address')
   const [loading, setLoading] = useState(false)
@@ -74,6 +80,7 @@ export default function CheckoutPage() {
     subtotal, deliveryFee, discount, total,
     paymentMethod: form.paymentMethod,
     items: cartProducts.map(i => ({
+      productId: i.product.id,
       productName: i.product.name,
       productEmoji: i.product.emoji,
       productImage: i.product.image || '',
@@ -149,7 +156,12 @@ export default function CheckoutPage() {
     const loaded = await loadRazorpay()
     if (!loaded) { alert('Payment gateway failed to load. Try COD.'); setPayLoading(false); return }
 
-    const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder'
+    const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim()
+    if (!rzpKey) {
+      alert('Online payment is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID to .env.local or choose Cash on Delivery.')
+      setPayLoading(false)
+      return
+    }
 
     const options = {
       key: rzpKey,
@@ -202,46 +214,52 @@ export default function CheckoutPage() {
   )
 
   if (step === 'success') return (
-    <div style={{ minHeight: '100vh', background: '#FEFAE0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: 'white', borderRadius: 24, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center', border: '1px solid #e5e7eb' }}>
-        <div style={{ width: 80, height: 80, background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-          <CheckCircle size={40} color="#16a34a" />
-        </div>
-        <h1 style={{ fontFamily: 'serif', fontSize: 28, fontWeight: 700, color: '#14532d', marginBottom: 8 }}>Order Placed!</h1>
-        <p style={{ color: '#6b7280', fontSize: 15, marginBottom: 8 }}>Your fresh produce is being packed.</p>
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '12px 20px', marginBottom: 24, display: 'inline-block' }}>
-          <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#15803d', fontWeight: 600 }}>
-            Order #{String(orderId).slice(-8).toUpperCase()}
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28, textAlign: 'left' }}>
-          {[['💰 Total', `₹${total}`],['💳 Payment', form.paymentMethod.toUpperCase()],['📍 Delivery to', form.city],['⚡ ETA', '4–6 hours']].map(([k,v]) => (
-            <div key={k} style={{ background: '#f9fafb', borderRadius: 10, padding: '10px 14px' }}>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{v}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e' }}>
-          📧 A confirmation will be sent to <strong>{form.email || 'your email'}</strong>
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <button onClick={() => router.push(`/track/${orderId}`)}
-            style={{ width:'100%', background:'white', color:'#14532d', border:'2px solid #14532d', borderRadius:14, padding:'13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-            Track Order →
-          </button>
-          <button onClick={() => router.push('/')}
-            style={{ width:'100%', background:'#14532d', color:'white', border:'none', borderRadius:14, padding:'13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-            Continue Shopping
-          </button>
+    <>
+      <Navbar cartCount={cartItems.reduce((s, i) => s + i.qty, 0)} onCartClick={() => router.push('/checkout')} />
+      <div style={{ minHeight: '100vh', background: '#FEFAE0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, paddingTop: 120 }}>
+        <div style={{ background: 'white', borderRadius: uiTokens.radius.panel, padding: '48px 40px', maxWidth: 480, width: '100%', textAlign: 'center', border: '1px solid #e5e7eb' }}>
+          <div style={{ width: 80, height: 80, background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+            <CheckCircle size={40} color="#16a34a" />
+          </div>
+          <h1 style={{ fontFamily: 'serif', fontSize: 28, fontWeight: 700, color: '#14532d', marginBottom: 8 }}>Order Placed!</h1>
+          <p style={{ color: '#6b7280', fontSize: 15, marginBottom: 8 }}>Your fresh produce is being packed.</p>
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '12px 20px', marginBottom: 24, display: 'inline-block' }}>
+            <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#15803d', fontWeight: 600 }}>
+              Order #{String(orderId).slice(-8).toUpperCase()}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28, textAlign: 'left' }}>
+            {[['💰 Total', `₹${total}`],['💳 Payment', form.paymentMethod.toUpperCase()],['📍 Delivery to', form.city],['⚡ ETA', '4–6 hours']].map(([k,v]) => (
+              <div key={k} style={{ background: '#f9fafb', borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e' }}>
+            📧 A confirmation will be sent to <strong>{form.email || 'your email'}</strong>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <button onClick={() => router.push(`/track/${orderId}`)}
+              style={{ width:'100%', background:'white', color:'#14532d', border:'2px solid #14532d', borderRadius:14, padding:'13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+              Track Order →
+            </button>
+            <button onClick={() => router.push('/')}
+              style={{ width:'100%', background:'#14532d', color:'white', border:'none', borderRadius:14, padding:'13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+              Continue Shopping
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FEFAE0', paddingTop: 80 }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+    <>
+      <Navbar cartCount={cartItems.reduce((s, i) => s + i.qty, 0)} onCartClick={() => router.push('/checkout')} />
+      <div style={{ minHeight: '100vh', background: '#FEFAE0', paddingTop: 96 }}>
+        <div style={{ maxWidth: uiTokens.container.commerce, margin: '0 auto', padding: '32px 20px 64px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
         {/* Left */}
         <div>
           <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 14, marginBottom: 24 }}>
@@ -266,8 +284,8 @@ export default function CheckoutPage() {
           </div>
 
           {step === 'address' && (
-            <div style={{ background: 'white', borderRadius: 20, padding: 28, border: '1px solid #e5e7eb' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ background: 'white', borderRadius: uiTokens.radius.panel, padding: 28, border: '1px solid #e5e7eb' }}>
+              <h2 style={{ ...uiTokens.typography.sectionTitle, color: '#111827', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={18} color="#14532d" /> Delivery Details
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -298,8 +316,8 @@ export default function CheckoutPage() {
           )}
 
           {step === 'payment' && (
-            <div style={{ background: 'white', borderRadius: 20, padding: 28, border: '1px solid #e5e7eb' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ background: 'white', borderRadius: uiTokens.radius.panel, padding: 28, border: '1px solid #e5e7eb' }}>
+              <h2 style={{ ...uiTokens.typography.sectionTitle, color: '#111827', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CreditCard size={18} color="#14532d" /> Payment Method
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -360,8 +378,8 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right — Order Summary */}
-        <div style={{ background: 'white', borderRadius: 20, padding: 24, border: '1px solid #e5e7eb', position: 'sticky', top: 100 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 16 }}>
+        <div style={{ background: 'white', borderRadius: uiTokens.radius.panel, padding: 24, border: '1px solid #e5e7eb', position: 'sticky', top: 100 }}>
+          <h3 style={{ ...uiTokens.typography.sectionTitle, color: '#111827', marginBottom: 16 }}>
             Order Summary ({cartProducts.reduce((s, i) => s + i.qty, 0)} items)
           </h3>
           {cartProducts.length === 0 ? (
@@ -415,7 +433,9 @@ export default function CheckoutPage() {
             </>
           )}
         </div>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }

@@ -97,7 +97,7 @@ export default function SuperAdminLogin() {
               <div>
                 <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 7 }}>Email</label>
                 <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                  type="email" placeholder="superadmin@vegfru.com" autoComplete="username"
+                  type="email" placeholder="you@example.com" autoComplete="username"
                   style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }}
                   onFocus={e => e.target.style.borderColor = "rgba(168,85,247,0.6)"}
                   onBlur={e => e.target.style.borderColor = "rgba(168,85,247,0.2)"} />
@@ -126,15 +126,15 @@ export default function SuperAdminLogin() {
           </div>
         </div>
 
-        {/* Demo credentials */}
+        {/* Default superadmin */}
         <div style={{ marginTop: 14, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px" }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "monospace", letterSpacing: 2, marginBottom: 8 }}>DEMO CREDENTIALS</div>
-          <button onClick={() => setForm({ email: "superadmin@vegfru.com", password: "superadmin123" })}
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: "monospace", letterSpacing: 2, marginBottom: 8 }}>DEFAULT SUPERADMIN</div>
+          <button onClick={() => setForm({ email: "satyamkumarpandey4567@gmail.com", password: "Panda@1912" })}
             style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)", borderRadius: 10, padding: "9px 12px", cursor: "pointer" }}>
             <ShieldCheck size={14} color="#a855f7" />
             <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 12, color: "#c084fc", fontWeight: 500 }}>superadmin@vegfru.com</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>password: superadmin123</div>
+              <div style={{ fontSize: 12, color: "#c084fc", fontWeight: 500 }}>satyamkumarpandey4567@gmail.com</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "monospace" }}>password: Panda@1912</div>
             </div>
             <div style={{ marginLeft: "auto", fontSize: 10, color: "rgba(255,255,255,0.2)" }}>↑ Fill</div>
           </button>

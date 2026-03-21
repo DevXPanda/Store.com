@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShoppingCart, Search, Menu, X, Leaf, MapPin, Bell, User, LogOut, ChevronDown, Eye, EyeOff, Loader2, Package } from 'lucide-react'
 import { useAuth } from '@/app/AuthContext'
-import { products } from '@/app/data'
+import { mapConvexProduct, type CatalogProduct } from '@/lib/catalog'
+import { useConvexQuery } from '@/lib/convexFetch'
 
 export default function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: () => void }) {
   const { user, login, logout, loading } = useAuth()
@@ -13,7 +14,9 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
   const [mobileOpen, setMobileOpen]     = useState(false)
   const [searchOpen, setSearchOpen]     = useState(false)
   const [searchQuery, setSearchQuery]   = useState('')
-  const [searchResults, setSearchResults] = useState<typeof products>([])
+  const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
+  const products = (rawProducts ?? []).map(mapConvexProduct)
+  const [searchResults, setSearchResults] = useState<CatalogProduct[]>([])
   const [modalOpen, setModalOpen]       = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [isRegister, setIsRegister]     = useState(false)
@@ -56,7 +59,7 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
       p.description.toLowerCase().includes(q)
     ).slice(0, 6)
     setSearchResults(results)
-  }, [searchQuery])
+  }, [searchQuery, products])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,8 +68,8 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
     setSearchOpen(false); setSearchQuery(''); setSearchResults([])
   }
 
-  const handleSearchSelect = (productId: number) => {
-    router.push(`/product/${productId}`)
+  const handleSearchSelect = (productId: string) => {
+    router.push(`/product/${encodeURIComponent(productId)}`)
     setSearchOpen(false); setSearchQuery(''); setSearchResults([])
   }
 
@@ -90,7 +93,10 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
           setSuccess('Account created! Signing you in...')
           const r = await login(form.email, form.password)
           if (r.success) setTimeout(closeModal, 800)
-          else setError('Registered! Please sign in manually.')
+          else {
+            setSuccess('')
+            setError(r.error || 'Registered, but auto-login failed. Please sign in.')
+          }
         } else { setError(data.error || 'Registration failed.') }
       } catch { setError('Network error. Try again.') }
     } else {
@@ -169,7 +175,7 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
                       <div className="px-4 py-3">
                         <div className="text-xs text-gray-400 mb-2 font-medium">Popular searches</div>
                         <div className="flex flex-wrap gap-2">
-                          {['Mango','Tomatoes','Spinach','Avocado','Strawberries'].map(s => (
+                          {['Tomato', 'Spinach', 'Apple', 'Banana', 'Onion'].map(s => (
                             <button key={s} onClick={() => setSearchQuery(s)} className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full hover:bg-green-100">{s}</button>
                           ))}
                         </div>
@@ -272,13 +278,8 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
                 <Leaf className="w-6 h-6 text-white" />
               </div>
               <h2 className="text-white text-xl font-bold">{isRegister ? 'Create account' : 'Welcome back'}</h2>
-              <p className="text-green-200 text-sm mt-1">{isRegister ? 'Join 12,400+ families getting fresh produce' : 'Sign in to track orders & get exclusive deals'}</p>
+              <p className="text-green-200 text-sm mt-1">{isRegister ? 'Create an account to track orders and save your details' : 'Sign in to track orders & get exclusive deals'}</p>
             </div>
-            {!isRegister && (
-              <div className="mx-6 -mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700">
-                <span className="font-medium">Demo:</span> customer@vegfru.com / customer123
-              </div>
-            )}
             <form onSubmit={handleSubmit} className="p-6 pt-4 flex flex-col gap-4">
               {isRegister && (
                 <div>

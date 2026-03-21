@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'vegfru-dev-secret')
-const PUBLIC = ['/admin/login', '/_next', '/favicon', '/api']
+const PUBLIC = ['/admin/login', '/admin/onboarding', '/admin/pending', '/_next', '/favicon', '/api']
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -26,7 +26,7 @@ export async function middleware(req: NextRequest) {
   if (userCookie) {
     try {
       const user = JSON.parse(userCookie)
-      if (['admin','superadmin'].includes(user.role)) return NextResponse.next()
+      if (user.role === 'admin') return NextResponse.next()
     } catch {}
   }
 
