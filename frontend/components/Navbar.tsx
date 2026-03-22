@@ -10,20 +10,20 @@ import { useConvexQuery } from '@/lib/convexFetch'
 export default function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: () => void }) {
   const { user, login, setSession, logout, loading } = useAuth()
   const router = useRouter()
-  const [scrolled, setScrolled]         = useState(false)
-  const [mobileOpen, setMobileOpen]     = useState(false)
-  const [searchOpen, setSearchOpen]     = useState(false)
-  const [searchQuery, setSearchQuery]   = useState('')
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
   const products = (rawProducts ?? []).map(mapConvexProduct)
   const [searchResults, setSearchResults] = useState<CatalogProduct[]>([])
-  const [modalOpen, setModalOpen]       = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [isRegister, setIsRegister]     = useState(false)
-  const [showPass, setShowPass]         = useState(false)
-  const [submitting, setSubmitting]     = useState(false)
-  const [error, setError]               = useState('')
-  const [success, setSuccess]           = useState('')
+  const [isRegister, setIsRegister] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
   const [registerStep, setRegisterStep] = useState<'details' | 'otp'>('details')
   const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email')
@@ -205,7 +205,7 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
             </a>
 
             <div className="hidden md:flex items-center gap-8">
-              {[['Shop','/#shop'],['Seasonal','/#seasonal'],['Bundles','/#bundles'],['Farms','/#farms'],['About','/#about']].map(([label, href]) => (
+              {[['Shop', '/#shop'], ['Seasonal', '/#seasonal'], ['Bundles', '/#bundles'], ['Farms', '/#farms'], ['About', '/#about']].map(([label, href]) => (
                 <a key={label} href={href} className="link-underline font-body text-sm font-medium text-gray-700 hover:text-forest-700 transition-colors">{label}</a>
               ))}
             </div>
@@ -314,7 +314,7 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
           {mobileOpen && (
             <div className="md:hidden pb-4 border-t border-green-100 pt-4 animate-slide-up">
               <div className="flex flex-col gap-3">
-                {[['Shop','/#shop'],['Seasonal','/#seasonal'],['Bundles','/#bundles']].map(([label,href]) => (
+                {[['Shop', '/#shop'], ['Seasonal', '/#seasonal'], ['Bundles', '/#bundles']].map(([label, href]) => (
                   <a key={label} href={href} className="font-body text-sm font-medium text-gray-700 hover:text-forest-700 py-1">{label}</a>
                 ))}
                 {user ? (
