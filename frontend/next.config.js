@@ -7,7 +7,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'plus.unsplash.com',   pathname: '/**' },
+      { protocol: 'https', hostname: 'plus.unsplash.com', pathname: '/**' },
     ],
     formats: ['image/avif', 'image/webp'],
   },
@@ -23,20 +23,20 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'X-Content-Type-Options',   value: 'nosniff' },
-          { key: 'X-Frame-Options',           value: 'DENY' },
-          { key: 'X-XSS-Protection',          value: '1; mode=block' },
-          { key: 'Referrer-Policy',            value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy',         value: 'camera=(), microphone=(self), geolocation=()' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
         ],
       },
       {
         source: '/api/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Origin',  value: process.env.NEXT_PUBLIC_APP_URL || 'https://vegfru.in' },
+          { key: 'Access-Control-Allow-Origin', value: process.env.NEXT_PUBLIC_APP_URL || 'https://vegfru.in' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
-          { key: 'X-Content-Type-Options',       value: 'nosniff' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
       {
@@ -57,9 +57,14 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: '/shop',   destination: '/#shop',       permanent: false },
-      { source: '/cart',   destination: '/',             permanent: false },
-      { source: '/admin',  destination: '/admin/login',  permanent: false, has: [{ type: 'cookie', key: 'vegfru_token', missing: true }] },
+      { source: '/shop', destination: '/#shop', permanent: false },
+      { source: '/cart', destination: '/', permanent: false },
+      {
+        source: '/admin',
+        destination: '/admin/login',
+        permanent: false,
+        missing: [{ type: 'cookie', key: 'vegfru_token' }],
+      },
     ]
   },
 }
