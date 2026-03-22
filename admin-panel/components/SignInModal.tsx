@@ -2,30 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Leaf, X, Loader2, CheckCircle2 } from "lucide-react";
+import { Leaf, X, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { normalizeE164 } from "@/lib/phone";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  /** When opening from /?signin=1, start on email/password */
+  initialAuthTab?: "phone" | "email";
 };
 
-export function SignInModal({ open, onClose }: Props) {
+export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) {
   const router = useRouter();
+  const [authTab, setAuthTab] = useState<"phone" | "email">(initialAuthTab);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!open) {
-      setStep("phone");
-      setPhone("");
-      setOtp("");
-      setError("");
-    }
-  }, [open]);
+    if (!open) return;
+    setAuthTab(initialAuthTab);
+    setStep("phone");
+    setPhone("");
+    setOtp("");
+    setError("");
+    setEmail("");
+    setPassword("");
+    setShowPw(false);
+  }, [open, initialAuthTab]);
 
   if (!open) return null;
 
@@ -105,6 +114,36 @@ export function SignInModal({ open, onClose }: Props) {
     setLoading(false);
   };
 
+  const emailLogin = async () => {
+    if (!email || !password) {
+      setError("Please fill all fields");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.success && data.user && data.user.role === "admin") {
+        document.cookie = `vegfru_token=${data.token};path=/;max-age=${7 * 86400};samesite=strict`;
+        document.cookie = `vegfru_user=${JSON.stringify(data.user)};path=/;max-age=${7 * 86400};samesite=strict`;
+        localStorage.setItem("vegfru_admin", JSON.stringify(data.user));
+        handleClose();
+        router.push("/admin");
+        router.refresh();
+        return;
+      }
+      setError(data.error || "Invalid credentials. Admin account required.");
+    } catch {
+      setError("Network error. Please try again.");
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <button
@@ -121,7 +160,7 @@ export function SignInModal({ open, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-green-100 bg-[#FEFAE0]/90">
           <div className="inline-flex items-center gap-2 rounded-full bg-green-100 border border-green-200 px-3 py-1 text-[11px] font-mono uppercase tracking-wide text-forest-700">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-            Twilio SMS sign-in
+            Admin sign-in
           </div>
           <button
             type="button"
@@ -132,7 +171,32 @@ export function SignInModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div className="px-6 pt-6 pb-2 text-center">
+        <div className="flex gap-1 px-4 pt-4">
+          <button
+            type="button"
+            onClick={() => { setAuthTab("phone"); setError(""); }}
+            className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+              authTab === "phone"
+                ? "bg-forest-700 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Phone (SMS)
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAuthTab("email"); setError(""); }}
+            className={`flex-1 rounded-xl py-2 text-sm font-medium transition-colors ${
+              authTab === "email"
+                ? "bg-forest-700 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Email
+          </button>
+        </div>
+
+        <div className="px-6 pt-4 pb-2 text-center">
           <div className="flex justify-center mb-3">
             <div className="w-12 h-12 bg-forest-700 rounded-xl flex items-center justify-center shadow-md">
               <Leaf className="w-6 h-6 text-green-200" />
@@ -142,7 +206,9 @@ export function SignInModal({ open, onClose }: Props) {
             VegFru Admin
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Sign in with phone (OTP via SMS)
+            {authTab === "phone"
+              ? "Sign in with phone (OTP via SMS)"
+              : "Sign in with admin email and password"}
           </p>
         </div>
 
@@ -153,7 +219,54 @@ export function SignInModal({ open, onClose }: Props) {
             </div>
           )}
 
-          {step === "phone" && (
+          {authTab === "email" && (
+            <>
+              <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="admin@vegfru.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-green-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-500 mb-3"
+              />
+              <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
+                Password
+              </label>
+              <div className="relative mb-4">
+                <input
+                  type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && emailLogin()}
+                  className="w-full rounded-xl border border-green-200 bg-white px-4 py-3 pr-12 text-gray-900 outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={emailLogin}
+                className="w-full rounded-xl bg-forest-700 hover:bg-forest-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loading ? "Signing in…" : "Sign in"}
+              </button>
+            </>
+          )}
+
+          {authTab === "phone" && step === "phone" && (
             <>
               <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
                 Phone number
@@ -179,7 +292,7 @@ export function SignInModal({ open, onClose }: Props) {
             </>
           )}
 
-          {step === "otp" && (
+          {authTab === "phone" && step === "otp" && (
             <>
               <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
                 Enter SMS code
@@ -218,9 +331,11 @@ export function SignInModal({ open, onClose }: Props) {
             </>
           )}
 
-          <p className="mt-5 text-[11px] text-center text-gray-500 leading-relaxed">
-            OTP is sent through Twilio Verify.
-          </p>
+          {authTab === "phone" && (
+            <p className="mt-5 text-[11px] text-center text-gray-500 leading-relaxed">
+              OTP is sent through Twilio Verify.
+            </p>
+          )}
         </div>
       </div>
     </div>

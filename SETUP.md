@@ -15,19 +15,11 @@ npx convex run auth:seedAdminAndDelivery
 npx convex run products:seedProducts
 ```
 
-## Step 3: Environment Variables
+## Step 3: Environment Variables (single file)
 ```bash
-# Frontend
-cp frontend/.env.local.example frontend/.env.local
-# Edit and fill: NEXT_PUBLIC_CONVEX_URL, JWT_SECRET, GROQ_API_KEY
-
-# Admin Panel
-cp admin-panel/.env.local.example admin-panel/.env.local
-# Edit and fill: NEXT_PUBLIC_CONVEX_URL, JWT_SECRET (same as frontend)
-
-# Delivery Panel
-cp delivery-panel/.env.local.example delivery-panel/.env.local
-# Edit and fill: NEXT_PUBLIC_CONVEX_URL
+cp backend/.env.local.example backend/.env.local
+# Edit backend/.env.local — NEXT_PUBLIC_CONVEX_URL, JWT_SECRET, GROQ_API_KEY, etc.
+# All Next apps load this via next.config.js (see backend/load-env.js).
 ```
 
 ## Step 4: Run All 3 Panels

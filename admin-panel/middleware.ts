@@ -34,7 +34,7 @@ export async function middleware(req: NextRequest) {
   const adminHeader = req.headers.get('x-vegfru-admin')
   if (adminHeader === 'true') return NextResponse.next()
 
-  return NextResponse.redirect(new URL('/admin/login', req.url))
+  return NextResponse.redirect(new URL('/', req.url))
 }
 
-export const config = { matcher: ['/admin/:path*'] }
+export const config = { matcher: ['/admin', '/admin/:path*'] }

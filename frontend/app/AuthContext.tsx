@@ -14,6 +14,8 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; role?: string; error?: string }>;
+  /** After email/phone OTP verification — same cookies as password login */
+  setSession: (token: string, user: AuthUser) => void;
   logout: () => void;
   isAdmin: boolean;
   isDelivery: boolean;
@@ -53,6 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setSession = (token: string, u: AuthUser) => {
+    setUser(u);
+    Cookies.set("vegfru_user", JSON.stringify(u), { expires: 7 });
+    Cookies.set("vegfru_token", token, { expires: 7 });
+  };
+
   const logout = () => {
     setUser(null);
     Cookies.remove("vegfru_user");
@@ -61,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, login, logout,
+      user, loading, login, setSession, logout,
       isAdmin: user?.role === "admin",
       isDelivery: user?.role === "delivery",
     }}>

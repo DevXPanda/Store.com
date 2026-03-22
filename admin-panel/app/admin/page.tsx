@@ -6,7 +6,7 @@ import {
   Plus, Search, Trash2, Edit2, Star, X, Menu, Loader2,
   Bell, Settings, ChevronDown, Filter, Download, RefreshCw,
   ArrowUpRight, ArrowDownRight, Eye, EyeOff, UserPlus,
-  BarChart3, Activity, ShieldCheck, IndianRupee, Zap
+  BarChart3, Activity, ShieldCheck, IndianRupee, Zap, Sun, Moon
 } from "lucide-react";
 import { VegFruBrandBar } from "@/components/VegFruBrandBar";
 
@@ -79,9 +79,9 @@ async function cm(url: string, path: string, args: object = {}) {
 const Modal = ({ title, onClose, children }: any) => (
   <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(4px)" }}
     onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "88vh", overflow: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }}>
+    <div style={{ background: "var(--adm-elevated,#111827)", border: "1px solid var(--adm-border,rgba(255,255,255,0.1))", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "88vh", overflow: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.6)" }}>
       <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 16, fontWeight: 600, color: "#f1f5f9" }}>{title}</span>
+        <span style={{ fontSize: 16, fontWeight: 600, color: "var(--adm-text)" }}>{title}</span>
         <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: 6, display: "flex" }}><X size={16} /></button>
       </div>
       <div style={{ padding: 24 }}>{children}</div>
@@ -93,7 +93,7 @@ const FormField = ({ label, value, onChange, type = "text", placeholder, require
   <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>{label}{required && " *"}</label>
     <input value={value} onChange={e => onChange(e.target.value)} type={type} placeholder={placeholder}
-      style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+      style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "var(--adm-text)", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
   </div>
 );
 
@@ -101,8 +101,8 @@ const SelectField = ({ label, value, onChange, options }: any) => (
   <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>{label}</label>
     <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#e2e8f0", fontSize: 13, outline: "none" }}>
-      {options.map((o: any, idx: number) => <option key={idx} value={o.value || o} style={{ background: "#111827" }}>{o.label || o}</option>)}
+      style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "var(--adm-text)", fontSize: 13, outline: "none" }}>
+      {options.map((o: any, idx: number) => <option key={idx} value={o.value || o} style={{ background: "var(--adm-card)" }}>{o.label || o}</option>)}
     </select>
   </div>
 );
@@ -151,6 +151,7 @@ export default function AdminDashboard() {
   const [toastType, setToastType] = useState<"ok" | "err">("ok");
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const [newProd, setNewProd] = useState({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "" });
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", phone: "", role: "admin" });
@@ -191,6 +192,38 @@ export default function AdminDashboard() {
       if (s) setAdminUser(JSON.parse(s));
     } catch { }
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vegfru_admin_theme");
+      if (saved === "light") setIsDarkMode(false);
+    } catch { }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("data-admin-theme", isDarkMode ? "dark" : "light");
+    document.documentElement.style.colorScheme = isDarkMode ? "dark" : "light";
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("vegfru_admin_theme", next ? "dark" : "light");
+      } catch { }
+      return next;
+    });
+  };
+
+  function signOutAdmin() {
+    try {
+      document.cookie = "vegfru_token=;path=/;max-age=0";
+      document.cookie = "vegfru_user=;path=/;max-age=0";
+    } catch { }
+    localStorage.removeItem("vegfru_admin");
+    window.location.href = "/";
+  }
 
   const loadAll = useCallback(async () => {
     if (!CURL) { setLoading(false); return; }
@@ -379,16 +412,16 @@ export default function AdminDashboard() {
   const Sidebar = () => (
     <aside style={{
       width: sidebarOpen ? 240 : 68, flexShrink: 0,
-      background: "linear-gradient(180deg,#0d1117 0%,#0f172a 100%)",
-      borderRight: "1px solid rgba(255,255,255,0.06)",
+      background: "linear-gradient(180deg,var(--adm-sidebar,#0d1117) 0%,var(--adm-sidebar2,#0f172a) 100%)",
+      borderRight: "1px solid var(--adm-border,rgba(255,255,255,0.06))",
       display: "flex", flexDirection: "column",
       transition: "width 0.25s ease", overflow: "hidden", position: "relative"
     }}>
       {/* Logo */}
-      <div style={{ padding: "20px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10, height: 72 }}>
+      <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--adm-border,rgba(255,255,255,0.06))", display: "flex", alignItems: "center", gap: 10, height: 72 }}>
         <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, boxShadow: "0 4px 12px rgba(22,101,52,0.4)" }}>🌿</div>
         {sidebarOpen && <div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.3px" }}>Veg<span style={{ color: "#4ade80" }}>Fru</span></div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--adm-logo-text)", letterSpacing: "-0.3px" }}>Veg<span style={{ color: "#4ade80" }}>Fru</span></div>
           <div style={{ fontSize: 9, color: "#22c55e", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", marginTop: 1 }}>
             {isSuperAdmin ? "Super Admin" : "Admin Panel"}
           </div>
@@ -406,7 +439,7 @@ export default function AdminDashboard() {
                 borderRadius: 10, border: "none", cursor: "pointer", width: "100%", textAlign: "left",
                 fontSize: 13, fontWeight: active ? 600 : 400, transition: "all 0.15s",
                 background: active ? "linear-gradient(135deg,#15803d,#166534)" : "transparent",
-                color: active ? "#fff" : "rgba(255,255,255,0.45)",
+                color: active ? "#fff" : "var(--adm-sidebar-muted)",
                 boxShadow: active ? "0 2px 8px rgba(22,101,52,0.35)" : "none",
               }}
               title={!sidebarOpen ? label : undefined}>
@@ -422,7 +455,7 @@ export default function AdminDashboard() {
 
       {/* Bottom */}
       <div style={{ padding: "12px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <button onClick={() => { localStorage.removeItem("vegfru_admin"); window.location.href = "/admin/login"; }}
+        <button onClick={signOutAdmin}
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px", borderRadius: 10, background: "transparent", color: "rgba(255,255,255,0.3)", border: "none", cursor: "pointer", width: "100%", fontSize: 13, transition: "all 0.15s" }}
           onMouseEnter={e => { (e.currentTarget as any).style.background = "rgba(239,68,68,0.1)"; (e.currentTarget as any).style.color = "#f87171" }}
           onMouseLeave={e => { (e.currentTarget as any).style.background = "transparent"; (e.currentTarget as any).style.color = "rgba(255,255,255,0.3)" }}>
@@ -431,98 +464,6 @@ export default function AdminDashboard() {
         </button>
       </div>
     </aside>
-  );
-
-  // ── Topbar ───────────────────────────────────────────────────
-  const Topbar = () => (
-    <header style={{
-      height: 64, background: "#0d1117",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "0 24px", flexShrink: 0, position: "sticky", top: 0, zIndex: 30,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}>
-          <Menu size={18} />
-        </button>
-        <div>
-          <h1 style={{ fontSize: 17, fontWeight: 600, color: "#f1f5f9", margin: 0 }}>{NAV.find(n => n.id === tab)?.label || "Dashboard"}</h1>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {/* Live indicator */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 20, padding: "5px 12px" }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
-          <span style={{ fontSize: 11, color: "#4ade80", fontFamily: "monospace" }}>LIVE</span>
-        </div>
-
-        {/* Refresh */}
-        <button onClick={loadAll} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-          <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
-          Refresh
-        </button>
-
-        {/* Notifications */}
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
-            <Bell size={15} />
-            {pendingOrders.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{pendingOrders.length}</span>}
-          </button>
-          {notifOpen && (
-            <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 300, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>Notifications</div>
-              {pendingOrders.length === 0
-                ? <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>All caught up!</div>
-                : pendingOrders.slice(0, 5).map(o => (
-                  <div key={o._id} onClick={() => { setSelectedOrder(o); setNotifOpen(false); setTab("orders"); }}
-                    style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
-                    onMouseEnter={e => (e.currentTarget as any).style.background = "rgba(255,255,255,0.04)"}
-                    onMouseLeave={e => (e.currentTarget as any).style.background = "transparent"}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{o.customerName}</div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>New order · ₹{o.total} · {fmt(o.createdAt)}</div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* Profile */}
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setProfileOpen(!profileOpen)} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "6px 12px", cursor: "pointer" }}>
-            <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff" }}>
-              {(adminUser?.name || "A").charAt(0).toUpperCase()}
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#f1f5f9" }}>{adminUser?.name || "Admin"}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{adminUser?.role || "admin"}</div>
-            </div>
-            <ChevronDown size={12} style={{ color: "rgba(255,255,255,0.4)" }} />
-          </button>
-          {profileOpen && (
-            <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 200, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 500 }}>{adminUser?.name}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{adminUser?.email}</div>
-                {adminUser && <RoleBadge role={adminUser.role} />}
-              </div>
-              <div style={{ padding: 8 }}>
-                <button onClick={() => { localStorage.removeItem("vegfru_admin"); window.location.href = "/admin/login"; }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", cursor: "pointer", color: "#f87171", fontSize: 13, borderRadius: 8, textAlign: "left" }}
-                  onMouseEnter={e => (e.currentTarget as any).style.background = "rgba(239,68,68,0.1)"}
-                  onMouseLeave={e => (e.currentTarget as any).style.background = "transparent"}>
-                  <LogOut size={14} /> Sign Out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
   );
 
   // ── Dashboard ─────────────────────────────────────────────────
@@ -541,13 +482,13 @@ export default function AdminDashboard() {
           { label: "Today's Orders", value: todayOrders.length, sub: `${todayOrders.filter(o => o.status === "delivered").length} delivered`, icon: Zap, color: "#a855f7" },
           { label: "Low Stock Items", value: lowStock.length, sub: "need restocking", icon: AlertCircle, color: "#f59e0b" },
         ].map(({ label, value, sub, icon: Icon, color }) => (
-          <div key={label} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 22px" }}>
+          <div key={label} style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px 22px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon size={18} color={color} />
               </div>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px" }}>{value}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "var(--adm-text)", letterSpacing: "-0.5px" }}>{value}</div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{label}</div>
             <div style={{ fontSize: 11, color: color, marginTop: 4 }}>{sub}</div>
           </div>
@@ -556,9 +497,9 @@ export default function AdminDashboard() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, marginBottom: 16 }}>
         {/* Recent orders */}
-        <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#f1f5f9" }}>Recent Orders</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--adm-text)" }}>Recent Orders</span>
             <button onClick={() => setTab("orders")} style={{ fontSize: 12, color: "#4ade80", background: "none", border: "none", cursor: "pointer" }}>View all →</button>
           </div>
           {loading
@@ -577,7 +518,7 @@ export default function AdminDashboard() {
                     #{o._id?.slice(-3).toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.customerName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--adm-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.customerName}</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{fmt(o.createdAt)} · {o.paymentMethod?.toUpperCase()}</div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -591,8 +532,8 @@ export default function AdminDashboard() {
       </div>
 
       {/* Revenue 7-day chart - OUTSIDE the 2-col grid */}
-      {revenueData.length > 0 && <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 20, marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#f1f5f9", marginBottom: 16 }}>Revenue — Last 7 Days</div>
+      {revenueData.length > 0 && <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--adm-text)", marginBottom: 16 }}>Revenue — Last 7 Days</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 80 }}>
           {revenueData.map((d: any) => {
             const maxR = Math.max(...revenueData.map((x: any) => x.revenue), 1);
@@ -615,8 +556,8 @@ export default function AdminDashboard() {
         {/* Left side - order breakdown */}
         <div>
           {/* Stats per status */}
-          <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", marginBottom: 12 }}>Order Breakdown</div>
+          <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--adm-text)", marginBottom: 12 }}>Order Breakdown</div>
             {Object.entries(S).map(([status, cfg]) => {
               const count = orders.filter((o: any) => o.status === status).length;
               const pct = orders.length ? Math.round((count / orders.length) * 100) : 0;
@@ -637,7 +578,7 @@ export default function AdminDashboard() {
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Low stock */}
-          <div style={{ background: "#111827", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 16, padding: 16 }}>
+          <div style={{ background: "var(--adm-card)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 16, padding: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <AlertCircle size={15} color="#f59e0b" />
               <span style={{ fontSize: 13, fontWeight: 600, color: "#f59e0b" }}>Low Stock Alert ({lowStock.length})</span>
@@ -647,15 +588,15 @@ export default function AdminDashboard() {
               : lowStock.slice(0, 6).map((p: any) => (
                 <div key={p._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <span style={{ fontSize: 18 }}>{p.emoji}</span>
-                  <div style={{ flex: 1, fontSize: 12, color: "#e2e8f0" }}>{p.name}</div>
+                  <div style={{ flex: 1, fontSize: 12, color: "var(--adm-text)" }}>{p.name}</div>
                   <span style={{ fontSize: 11, color: p.stock === 0 ? "#ef4444" : "#f59e0b", fontFamily: "monospace", fontWeight: 700 }}>{p.stock} left</span>
                 </div>
               ))}
           </div>
 
           {/* Quick stats */}
-          <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9", marginBottom: 12 }}>Order Status Breakdown</div>
+          <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--adm-text)", marginBottom: 12 }}>Order Status Breakdown</div>
             {Object.entries(S).map(([status, cfg]) => {
               const count = orders.filter((o: any) => o.status === status).length;
               const pct = orders.length ? Math.round((count / orders.length) * 100) : 0;
@@ -684,7 +625,7 @@ export default function AdminDashboard() {
         <div style={{ position: "relative" }}>
           <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.3)" }} />
           <input value={orderSearch} onChange={e => setOrderSearch(e.target.value)} placeholder="Search orders, customers, phone..."
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "#e2e8f0", fontSize: 13, width: 280, outline: "none" }} />
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 280, outline: "none" }} />
         </div>
         {orderSearch && <button onClick={() => setOrderSearch("")} style={{ background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, padding: "6px 12px", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>Clear</button>}
         <button onClick={exportOrdersCSV} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "7px 14px", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>
@@ -706,7 +647,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800 }}>
             <thead>
@@ -735,7 +676,7 @@ export default function AdminDashboard() {
                         <span style={{ fontFamily: "monospace", fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>#{o._id?.slice(-6).toUpperCase()}</span>
                       </td>
                       <td style={{ padding: "13px 16px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#e2e8f0" }}>{o.customerName}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--adm-text)" }}>{o.customerName}</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{o.customerPhone}</div>
                       </td>
                       <td style={{ padding: "13px 16px", fontSize: 11, color: "rgba(255,255,255,0.3)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.deliveryAddress}</td>
@@ -788,7 +729,7 @@ export default function AdminDashboard() {
           <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.3)" }} />
           <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
             placeholder={`Search ${products.length} products...`}
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "#e2e8f0", fontSize: 13, width: 240, outline: "none" }} />
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 240, outline: "none" }} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {isSuperAdmin && <button onClick={() => setShowAddProduct(true)}
@@ -798,7 +739,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
             <thead>
@@ -826,7 +767,7 @@ export default function AdminDashboard() {
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ fontSize: 22 }}>{p.emoji}</span>
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: "#e2e8f0" }}>{p.name}</div>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--adm-text)" }}>{p.name}</div>
                             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{p.unit}</div>
                           </div>
                         </div>
@@ -846,7 +787,7 @@ export default function AdminDashboard() {
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                           <Star size={11} color="#f59e0b" fill="#f59e0b" />
-                          <span style={{ fontSize: 13, color: "#e2e8f0" }}>{p.rating?.toFixed(1) || "—"}</span>
+                          <span style={{ fontSize: 13, color: "var(--adm-text)" }}>{p.rating?.toFixed(1) || "—"}</span>
                           <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>({p.reviews || 0})</span>
                         </div>
                       </td>
@@ -886,7 +827,7 @@ export default function AdminDashboard() {
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14, marginBottom: 20 }}>
         {deliveryBoys.length === 0
-          ? <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 20, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+          ? <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 20, color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
             No delivery personnel. Run <code style={{ fontSize: 11 }}>npx convex run auth:seedAdminAndDelivery</code>
           </div>
           : deliveryBoys.map((b: any) => {
@@ -895,13 +836,13 @@ export default function AdminDashboard() {
             const delivered = bOrders.filter((o: any) => o.status === "delivered").length;
             const todayDel = bOrders.filter((o: any) => o.status === "delivered" && Date.now() - o.createdAt < 86400000).length;
             return (
-              <div key={b._id} style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 18 }}>
+              <div key={b._id} style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                   <div style={{ width: 42, height: 42, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff" }}>
                     {b.name?.charAt(0)}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{b.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--adm-text)" }}>{b.name}</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{b.phone || b.email}</div>
                   </div>
                   <span style={{ background: b.isActive ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)", color: b.isActive ? "#4ade80" : "rgba(255,255,255,0.3)", fontSize: 10, padding: "3px 8px", borderRadius: 20, fontWeight: 600 }}>
@@ -921,14 +862,14 @@ export default function AdminDashboard() {
           })}
       </div>
 
-      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 14, fontWeight: 600, color: "#f1f5f9" }}>Active Deliveries</div>
+      <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 14, fontWeight: 600, color: "var(--adm-text)" }}>Active Deliveries</div>
         {orders.filter((o: any) => ["assigned", "picked_up", "out_for_delivery"].includes(o.status)).length === 0
           ? <div style={{ padding: 32, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No active deliveries right now.</div>
           : orders.filter((o: any) => ["assigned", "picked_up", "out_for_delivery"].includes(o.status)).map((o: any) => (
             <div key={o._id} style={{ padding: "13px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#e2e8f0" }}>{o.customerName}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--adm-text)" }}>{o.customerName}</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{o.deliveryAddress}</div>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -945,7 +886,7 @@ export default function AdminDashboard() {
   const CustomersTab = () => {
     const unique = Array.from(new Map(orders.map((o: any) => [o.customerEmail, o])).values());
     return (
-      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
         {unique.length === 0
           ? <div style={{ padding: 48, textAlign: "center" }}><div style={{ fontSize: 40, marginBottom: 10 }}>👥</div><div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Customer data appears here after orders are placed on the storefront.</div></div>
           : <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -967,14 +908,14 @@ export default function AdminDashboard() {
                         <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#15803d,#166534)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>
                           {o.customerName?.charAt(0)}
                         </div>
-                        <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{o.customerName}</span>
+                        <span style={{ fontSize: 13, color: "var(--adm-text)", fontWeight: 500 }}>{o.customerName}</span>
                       </div>
                     </td>
                     <td style={{ padding: "13px 16px" }}>
                       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{o.customerEmail}</div>
                       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "monospace" }}>{o.customerPhone}</div>
                     </td>
-                    <td style={{ padding: "13px 16px", fontSize: 14, fontWeight: 700, color: "#e2e8f0" }}>{co.length}</td>
+                    <td style={{ padding: "13px 16px", fontSize: 14, fontWeight: 700, color: "var(--adm-text)" }}>{co.length}</td>
                     <td style={{ padding: "13px 16px", fontSize: 14, fontWeight: 700, color: "#4ade80" }}>₹{spent.toLocaleString()}</td>
                     <td style={{ padding: "13px 16px", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{fmt(o.createdAt)}</td>
                   </tr>
@@ -996,14 +937,14 @@ export default function AdminDashboard() {
         <div style={{ position: "relative" }}>
           <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.3)" }} />
           <input value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search users..."
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "#e2e8f0", fontSize: 13, width: 240, outline: "none" }} />
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 240, outline: "none" }} />
         </div>
         {isSuperAdmin && <button onClick={() => setShowAddUser(true)}
           style={{ display: "flex", alignItems: "center", gap: 6, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
           <UserPlus size={14} /> Add User
         </button>}
       </div>
-      <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
             {["User", "Contact", "Role", "Status", "Joined", "Actions"].map(h => (
@@ -1023,7 +964,7 @@ export default function AdminDashboard() {
                         {u.name?.charAt(0)}
                       </div>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#e2e8f0" }}>{u.name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--adm-text)" }}>{u.name}</div>
                         {u.lastLogin && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Last: {fmt(u.lastLogin)}</div>}
                       </div>
                     </div>
@@ -1061,15 +1002,15 @@ export default function AdminDashboard() {
 
   // ── Activity Log Tab ──────────────────────────────────────────
   const ActivityTab = () => (
-    <div style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
-      <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 14, fontWeight: 600, color: "#f1f5f9" }}>System Activity Log</div>
+    <div style={{ background: "var(--adm-card)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 14, fontWeight: 600, color: "var(--adm-text)" }}>System Activity Log</div>
       {activityLog.length === 0
         ? <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No activity recorded yet.</div>
         : activityLog.map((log: any, i: number) => (
           <div key={i} style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: 12, alignItems: "flex-start" }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80", marginTop: 5, flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, color: "#e2e8f0" }}>
+              <div style={{ fontSize: 13, color: "var(--adm-text)" }}>
                 <span style={{ color: "#4ade80", fontWeight: 600 }}>{log.userName}</span>
                 {" · "}<span style={{ color: "rgba(255,255,255,0.6)" }}>{log.action}</span>
                 {log.target && <span style={{ color: "rgba(255,255,255,0.4)" }}> → {log.target}</span>}
@@ -1087,15 +1028,113 @@ export default function AdminDashboard() {
     delivery: <DeliveryTab />, customers: <CustomersTab />, users: <UsersTab />, activity: <ActivityTab />,
   };
 
+  const adminTheme: React.CSSProperties = {
+    ["--adm-bg" as string]: isDarkMode ? "#060810" : "#f1f5f9",
+    ["--adm-sidebar" as string]: isDarkMode ? "#0d1117" : "#ffffff",
+    ["--adm-sidebar2" as string]: isDarkMode ? "#0f172a" : "#f8fafc",
+    ["--adm-card" as string]: isDarkMode ? "#111827" : "#ffffff",
+    ["--adm-elevated" as string]: isDarkMode ? "#1a1d27" : "#ffffff",
+    ["--adm-border" as string]: isDarkMode ? "rgba(255,255,255,0.07)" : "rgba(15,23,42,0.1)",
+    ["--adm-text" as string]: isDarkMode ? "#f1f5f9" : "#0f172a",
+    ["--adm-muted" as string]: isDarkMode ? "rgba(255,255,255,0.35)" : "#64748b",
+    ["--adm-sidebar-muted" as string]: isDarkMode ? "rgba(255,255,255,0.45)" : "#64748b",
+    ["--adm-logo-text" as string]: isDarkMode ? "#f1f5f9" : "#0f172a",
+  };
+
+  const brandLeft = (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, overflow: "hidden" }}>
+      <button type="button" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "rgba(22,101,52,0.08)", border: "1px solid rgba(22,101,52,0.2)", color: "#166534", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex", flexShrink: 0 }}>
+        <Menu size={18} />
+      </button>
+      <div style={{ minWidth: 0 }}>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: "#14532d", margin: 0, lineHeight: 1.2 }}>{NAV.find(n => n.id === tab)?.label || "Dashboard"}</h1>
+        <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
+      </div>
+    </div>
+  );
+
+  const brandRight = (
+    <>
+      <button type="button" onClick={toggleTheme} title={isDarkMode ? "Light mode" : "Dark mode"} style={{ background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 8, color: "#166534", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center" }}>
+        {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 20, padding: "4px 10px" }}>
+        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
+        <span style={{ fontSize: 10, color: "#15803d", fontFamily: "monospace", fontWeight: 600 }}>LIVE</span>
+      </div>
+      <button type="button" onClick={loadAll} style={{ background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 8, color: "#334155", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+        <RefreshCw size={13} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+        <span className="hidden sm:inline">Refresh</span>
+      </button>
+      <div style={{ position: "relative" }}>
+        <button type="button" onClick={() => setNotifOpen(!notifOpen)} style={{ background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 8, color: "#334155", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", position: "relative" }}>
+          <Bell size={15} />
+          {pendingOrders.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{pendingOrders.length}</span>}
+        </button>
+        {notifOpen && (
+          <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 300, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>Notifications</div>
+            {pendingOrders.length === 0
+              ? <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>All caught up!</div>
+              : pendingOrders.slice(0, 5).map(o => (
+                <div key={o._id} onClick={() => { setSelectedOrder(o); setNotifOpen(false); setTab("orders"); }}
+                  style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{o.customerName}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>New order · ₹{o.total} · {fmt(o.createdAt)}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+      <div style={{ position: "relative" }}>
+        <button type="button" onClick={() => setProfileOpen(!profileOpen)} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+          <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff" }}>
+            {(adminUser?.name || "A").charAt(0).toUpperCase()}
+          </div>
+          <div className="hidden sm:block text-left">
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#14532d" }}>{adminUser?.name || "Admin"}</div>
+            <div style={{ fontSize: 10, color: "#64748b" }}>{adminUser?.role || "admin"}</div>
+          </div>
+          <ChevronDown size={12} style={{ color: "#64748b" }} />
+        </button>
+        {profileOpen && (
+          <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 200, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 500 }}>{adminUser?.name}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{adminUser?.email}</div>
+              {adminUser && <RoleBadge role={adminUser.role} />}
+            </div>
+            <div style={{ padding: 8 }}>
+              <button type="button" onClick={signOutAdmin}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", cursor: "pointer", color: "#f87171", fontSize: 13, borderRadius: 8, textAlign: "left" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.1)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#0a0d14", fontFamily: "'DM Sans',system-ui,sans-serif", color: "#e2e8f0", overflow: "hidden" }}>
+    <div style={{ ...adminTheme, display: "flex", flexDirection: "column", height: "100vh", background: "var(--adm-bg)", fontFamily: "'DM Sans',system-ui,sans-serif", color: "var(--adm-text)", overflow: "hidden" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;}`}</style>
-      <VegFruBrandBar subtitle={isSuperAdmin ? "Super Admin · Farm Fresh" : "Admin · Farm Fresh"} />
+      <VegFruBrandBar
+        subtitle={isSuperAdmin ? "Super Admin · Farm Fresh" : "Admin · Farm Fresh"}
+        leftExtra={brandLeft}
+        rightExtra={brandRight}
+      />
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <Sidebar />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Topbar />
         <main style={{ flex: 1, overflow: "auto", padding: 24 }}>
           {TABS[tab] || <Dashboard />}
         </main>
@@ -1114,13 +1153,13 @@ export default function AdminDashboard() {
           {[["Customer", selectedOrder.customerName], ["Phone", selectedOrder.customerPhone], ["Payment", selectedOrder.paymentMethod?.toUpperCase()], ["Total", `₹${selectedOrder.total}`], ["Pay Status", selectedOrder.paymentStatus], ["Placed", fmt(selectedOrder.createdAt)]].map(([k, v]) => (
             <div key={k} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px" }}>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", marginBottom: 3 }}>{k}</div>
-              <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{v}</div>
+              <div style={{ fontSize: 13, color: "var(--adm-text)", fontWeight: 500 }}>{v}</div>
             </div>
           ))}
         </div>
         <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", marginBottom: 3 }}>ADDRESS</div>
-          <div style={{ fontSize: 12, color: "#e2e8f0" }}>{selectedOrder.deliveryAddress}</div>
+          <div style={{ fontSize: 12, color: "var(--adm-text)" }}>{selectedOrder.deliveryAddress}</div>
         </div>
         {selectedOrder.assignedDeliveryBoyName && <div style={{ background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", marginBottom: 3 }}>DELIVERY BOY</div>
@@ -1154,7 +1193,7 @@ export default function AdminDashboard() {
           ? <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", padding: "20px 0" }}>No delivery boys in DB.</div>
           : deliveryBoys.map((b: any) => (
             <button key={b._id} onClick={() => assignDelivery(assignModal, b)}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, cursor: "pointer", marginBottom: 8, textAlign: "left", color: "#e2e8f0", transition: "background 0.15s" }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, cursor: "pointer", marginBottom: 8, textAlign: "left", color: "var(--adm-text)", transition: "background 0.15s" }}
               onMouseEnter={e => (e.currentTarget as any).style.background = "rgba(34,197,94,0.08)"}
               onMouseLeave={e => (e.currentTarget as any).style.background = "rgba(255,255,255,0.04)"}>
               <div style={{ width: 38, height: 38, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{b.name?.charAt(0)}</div>
@@ -1218,7 +1257,7 @@ export default function AdminDashboard() {
         <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
             <input type="checkbox" checked={editUserForm.isActive} onChange={e => setEditUserForm(f => ({ ...f, isActive: e.target.checked }))} style={{ accentColor: "#15803d" }} />
-            <span style={{ fontSize: 13, color: "#e2e8f0" }}>Account Active</span>
+            <span style={{ fontSize: 13, color: "var(--adm-text)" }}>Account Active</span>
           </label>
         </div>
         <SubmitBtn label="Save Changes" loading={busy} onClick={saveEditUser} />

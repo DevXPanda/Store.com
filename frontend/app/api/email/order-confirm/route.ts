@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
-const FROM_EMAIL = process.env.FROM_EMAIL || 'orders@vegfru.in'
+import { isSmtpConfigured, sendMail } from '@/lib/mail'
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,19 +36,18 @@ ${itemsHtml}
 </div>
 </div></body></html>`
 
-    if (RESEND_API_KEY) {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `VegFru <${FROM_EMAIL}>`, to: [to], subject: `Order Confirmed #${orderIdShort} — VegFru`, html }),
+    if (isSmtpConfigured()) {
+      const sent = await sendMail({
+        to,
+        subject: `Order Confirmed #${orderIdShort} — VegFru`,
+        html,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Email send failed')
-      return NextResponse.json({ success: true, id: data.id })
+      if (!sent.ok) throw new Error(sent.error)
+      return NextResponse.json({ success: true, id: sent.id })
     }
 
     console.log(`[DEV EMAIL] To: ${to}, Order: ${orderIdShort}`)
-    return NextResponse.json({ success: true, dev: true, message: 'Add RESEND_API_KEY to send real emails' })
+    return NextResponse.json({ success: true, dev: true, message: 'Add SMTP_HOST, SMTP_USER, SMTP_PASS to send real emails' })
   } catch (err: any) {
     console.error('Email error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

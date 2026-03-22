@@ -39,13 +39,12 @@ delivery-panel/
 │       ├── layout.tsx          ← Delivery root layout
 │       └── page.tsx            ← Full app (login + 4 tabs + modals)
 ├── tailwind.config.js
-├── next.config.js
-└── .env.local.example
+├── next.config.js   # loads ../backend/.env.local
 ```
 
 ## Setup
 ```bash
 npm install
-cp .env.local.example .env.local
+# Secrets: backend/.env.local (see backend/.env.local.example at repo root)
 npm run dev    # → http://localhost:3002/delivery
 ```

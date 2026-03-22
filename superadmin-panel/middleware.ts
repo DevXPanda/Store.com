@@ -32,7 +32,7 @@ export async function middleware(req: NextRequest) {
     } catch {}
   }
 
-  return NextResponse.redirect(new URL('/superadmin/login', req.url))
+  return NextResponse.redirect(new URL('/', req.url))
 }
 
 export const config = { matcher: ['/superadmin', '/superadmin/:path*'] }

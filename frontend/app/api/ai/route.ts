@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey || apiKey.trim() === '') {
       return NextResponse.json(
         {
-          message: 'AI service is not configured. Please add `GROQ_API_KEY` in `frontend/.env.local` and restart the frontend server.',
+          message: 'AI service is not configured. Please add `GROQ_API_KEY` in `backend/.env.local` and restart the frontend server.',
           orderItems: [],
           model: 'unconfigured',
         },

@@ -40,10 +40,18 @@ export function DeliverySignInModal({ open, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      const res = (await convexMutation("deliveryPartnerAuth:requestDeliveryOtp", {
-        phone: digits,
-      })) as { devCode?: string };
-      setDevCode(res?.devCode ?? null);
+      const res = await fetch("/api/delivery/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: digits }),
+      });
+      const data = (await res.json()) as { error?: string; devCode?: string };
+      if (!res.ok) {
+        setError(data.error || "Could not send OTP");
+        setLoading(false);
+        return;
+      }
+      setDevCode(data.devCode ?? null);
       setStep("otp");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not send OTP");

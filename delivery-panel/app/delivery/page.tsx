@@ -508,7 +508,7 @@ export default function DeliveryApp() {
         type="button"
         onClick={() => {
           localStorage.removeItem("vegfru_delivery_user");
-          router.push("/login");
+          router.push("/");
         }}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/25 bg-destructive/10 py-3 text-sm font-medium text-destructive transition hover:bg-destructive/15"
       >

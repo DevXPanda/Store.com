@@ -532,7 +532,7 @@ export default function SuperAdminPanel(){
           <div style={{fontSize:11,fontWeight:600,color:"#22c55e"}}>{saUser?.name||"Super Admin"}</div>
           <div style={{fontSize:10,color:"var(--sa-muted)"}}>{saUser?.email||"superadmin@vegfru.com"}</div>
         </div>}
-        <button onClick={()=>{document.cookie="sa_token=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";document.cookie="sa_user=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";localStorage.removeItem("vegfru_superadmin");window.location.href="/superadmin/login";}}
+        <button onClick={()=>{document.cookie="sa_token=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";document.cookie="sa_user=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";localStorage.removeItem("vegfru_superadmin");window.location.href="/";}}
           style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:10,background:"transparent",color:"var(--sa-muted)",border:"none",cursor:"pointer",width:"100%",fontSize:13,transition:"all 0.15s"}}
           onMouseEnter={e=>{(e.currentTarget as any).style.background="rgba(239,68,68,0.1)";(e.currentTarget as any).style.color="#f87171"}}
           onMouseLeave={e=>{(e.currentTarget as any).style.background="transparent";(e.currentTarget as any).style.color="var(--sa-muted)"}}>
@@ -540,96 +540,6 @@ export default function SuperAdminPanel(){
         </button>
       </div>
     </aside>
-  );
-
-  // ── TOPBAR ───────────────────────────────────────────────────
-  const Topbar = () => (
-    <header style={{height:60,background:"var(--sa-topbar)",borderBottom:"1px solid var(--sa-panel-border)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:isMobile?"0 12px":"0 24px",flexShrink:0,position:"sticky",top:0,zIndex:40,backdropFilter:"blur(10px)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"none",border:"none",color:"var(--sa-muted)",cursor:"pointer",padding:6,borderRadius:8,display:"flex"}}>
-          {isMobile ? <Menu size={18}/> : <LayoutDashboard size={18}/>}
-        </button>
-        <div>
-          <h1 style={{fontSize:16,fontWeight:600,color:"var(--sa-text)",margin:0}}>{NAV.find(n=>n.id===tab)?.label}</h1>
-          {!isMobile && <div style={{fontSize:10,color:"var(--sa-muted)",fontFamily:"monospace"}}>{new Date().toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>}
-        </div>
-      </div>
-
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <button onClick={toggleTheme} style={{background:"var(--sa-ghost-bg)",border:"1px solid var(--sa-panel-border)",borderRadius:8,color:"var(--sa-muted)",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center"}}>
-          {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
-        </button>
-        {/* Live badge */}
-        <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:20,padding:"4px 12px"}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:"#16a34a",boxShadow:"0 0 8px #16a34a"}}/>
-          <span style={{fontSize:10,color:"#22c55e",fontFamily:"monospace",letterSpacing:1}}>LIVE</span>
-        </div>
-
-        {/* Refresh */}
-        <button onClick={loadAll} style={{background:"var(--sa-ghost-bg)",border:"1px solid var(--sa-ghost-border)",borderRadius:8,color:"var(--sa-muted)",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center",gap:6,fontSize:12}}>
-          <RefreshCw size={13} style={{animation:loading?"spin 1s linear infinite":"none"}}/>
-        </button>
-
-        {/* Notifications */}
-        <div style={{position:"relative"}}>
-          <button onClick={()=>setNotifOpen(!notifOpen)} style={{background:"var(--sa-ghost-bg)",border:"1px solid var(--sa-ghost-border)",borderRadius:8,color:"var(--sa-muted)",cursor:"pointer",padding:"6px 10px",display:"flex",position:"relative"}}>
-            <Bell size={15}/>
-            {pendingOrders.length>0&&<span style={{position:"absolute",top:-3,right:-3,width:14,height:14,background:"#ef4444",borderRadius:"50%",fontSize:8,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{pendingOrders.length}</span>}
-          </button>
-          {notifOpen&&(
-            <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:300,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:14,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
-              <div style={{padding:"12px 16px",borderBottom:"1px solid var(--sa-card-border)",fontSize:13,fontWeight:600,color:"var(--sa-text)",display:"flex",justifyContent:"space-between"}}>
-                Notifications <span style={{fontSize:11,color:"#22c55e"}}>{pendingOrders.length} pending</span>
-              </div>
-              {pendingOrders.length===0
-                ?<div style={{padding:20,textAlign:"center",color:"var(--sa-muted)",fontSize:13}}>All caught up!</div>
-                :pendingOrders.slice(0,5).map((o:any)=>(
-                  <div key={o._id} onClick={()=>{setViewOrderModal(o);setNotifOpen(false);}}
-                    style={{padding:"11px 16px",borderBottom:"1px solid var(--sa-card-border)",cursor:"pointer",display:"flex",gap:10}}
-                    onMouseEnter={e=>(e.currentTarget as any).style.background="var(--sa-row-hover)"}
-                    onMouseLeave={e=>(e.currentTarget as any).style.background="transparent"}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:"#fbbf24",marginTop:5,flexShrink:0}}/>
-                    <div>
-                      <div style={{fontSize:13,color:"var(--sa-text)"}}>{o.customerName} · <span style={{color:"#4ade80"}}>₹{o.total}</span></div>
-                      <div style={{fontSize:11,color:"var(--sa-muted)"}}>{fmt(o.createdAt)} · {o.paymentMethod?.toUpperCase()}</div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-
-        {/* Admin panel link */}
-        {!isMobile && <a href={process.env.NEXT_PUBLIC_ADMIN_URL||"http://localhost:3001"} target="_blank" rel="noreferrer"
-          style={{background:"var(--sa-ghost-bg)",border:"1px solid var(--sa-ghost-border)",borderRadius:8,color:"var(--sa-muted)",cursor:"pointer",padding:"6px 12px",fontSize:12,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>
-          <Globe size={13}/>Admin
-        </a>}
-
-        {/* Profile */}
-        <div style={{position:"relative"}}>
-          <button onClick={()=>setProfileOpen(!profileOpen)}
-            style={{display:"flex",alignItems:"center",gap:8,background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:10,padding:"6px 12px",cursor:"pointer"}}>
-            <div style={{width:26,height:26,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>
-              {(saUser?.name||"S").charAt(0)}
-            </div>
-            {!isMobile && <div style={{textAlign:"left"}}>
-              <div style={{fontSize:11,fontWeight:600,color:"var(--sa-text)"}}>{saUser?.name||"Super Admin"}</div>
-              <div style={{fontSize:9,color:"#22c55e"}}>superadmin</div>
-            </div>}
-            <ChevronDown size={11} style={{color:"var(--sa-muted)"}}/>
-          </button>
-          {profileOpen&&(
-            <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:200,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:12,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
-              <div style={{padding:"12px 14px",borderBottom:"1px solid var(--sa-card-border)"}}>
-                <div style={{fontSize:13,color:"var(--sa-text)",fontWeight:600}}>{saUser?.name}</div>
-                <div style={{fontSize:11,color:"var(--sa-muted)"}}>{saUser?.email}</div>
-                <Badge role="superadmin"/>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
   );
 
   // ── DASHBOARD TAB ────────────────────────────────────────────
@@ -1472,6 +1382,86 @@ export default function SuperAdminPanel(){
     logs:      <LogsTab/>,
   };
 
+  const saBrandLeft = (
+    <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,overflow:"hidden"}}>
+      <button type="button" onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"rgba(22,101,52,0.08)",border:"1px solid rgba(22,101,52,0.2)",color:"#166534",cursor:"pointer",padding:6,borderRadius:8,display:"flex"}}>
+        {isMobile ? <Menu size={18}/> : <LayoutDashboard size={18}/>}
+      </button>
+      <div style={{minWidth:0}}>
+        <h1 style={{fontSize:16,fontWeight:600,color:"#14532d",margin:0}}>{NAV.find(n=>n.id===tab)?.label}</h1>
+        {!isMobile && <div style={{fontSize:10,color:"#64748b",fontFamily:"monospace"}}>{new Date().toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>}
+      </div>
+    </div>
+  );
+
+  const saBrandRight = (
+    <>
+      <button type="button" onClick={toggleTheme} title={isDarkMode?"Light mode":"Dark mode"} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#166534",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center"}}>
+        {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
+      </button>
+      <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.25)",borderRadius:20,padding:"4px 10px"}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"#16a34a",boxShadow:"0 0 8px #16a34a"}}/>
+        <span style={{fontSize:10,color:"#15803d",fontFamily:"monospace",letterSpacing:1,fontWeight:600}}>LIVE</span>
+      </div>
+      <button type="button" onClick={loadAll} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center",gap:6,fontSize:12}}>
+        <RefreshCw size={13} style={{animation:loading?"spin 1s linear infinite":"none"}}/>
+      </button>
+      <div style={{position:"relative"}}>
+        <button type="button" onClick={()=>setNotifOpen(!notifOpen)} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 10px",display:"flex",position:"relative"}}>
+          <Bell size={15}/>
+          {pendingOrders.length>0&&<span style={{position:"absolute",top:-3,right:-3,width:14,height:14,background:"#ef4444",borderRadius:"50%",fontSize:8,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{pendingOrders.length}</span>}
+        </button>
+        {notifOpen&&(
+          <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:300,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:14,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid var(--sa-card-border)",fontSize:13,fontWeight:600,color:"var(--sa-text)",display:"flex",justifyContent:"space-between"}}>
+              Notifications <span style={{fontSize:11,color:"#22c55e"}}>{pendingOrders.length} pending</span>
+            </div>
+            {pendingOrders.length===0
+              ?<div style={{padding:20,textAlign:"center",color:"var(--sa-muted)",fontSize:13}}>All caught up!</div>
+              :pendingOrders.slice(0,5).map((o:any)=>(
+                <div key={o._id} onClick={()=>{setViewOrderModal(o);setNotifOpen(false);}}
+                  style={{padding:"11px 16px",borderBottom:"1px solid var(--sa-card-border)",cursor:"pointer",display:"flex",gap:10}}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--sa-row-hover)"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:"#fbbf24",marginTop:5,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:13,color:"var(--sa-text)"}}>{o.customerName} · <span style={{color:"#4ade80"}}>₹{o.total}</span></div>
+                    <div style={{fontSize:11,color:"var(--sa-muted)"}}>{fmt(o.createdAt)} · {o.paymentMethod?.toUpperCase()}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+      {!isMobile && <a href={process.env.NEXT_PUBLIC_ADMIN_URL||"http://localhost:3001"} target="_blank" rel="noreferrer"
+        style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 12px",fontSize:12,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>
+        <Globe size={13}/>Admin
+      </a>}
+      <div style={{position:"relative"}}>
+        <button type="button" onClick={()=>setProfileOpen(!profileOpen)}
+          style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:10,padding:"6px 10px",cursor:"pointer"}}>
+          <div style={{width:26,height:26,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>
+            {(saUser?.name||"S").charAt(0)}
+          </div>
+          {!isMobile && <div style={{textAlign:"left"}}>
+            <div style={{fontSize:11,fontWeight:600,color:"#14532d"}}>{saUser?.name||"Super Admin"}</div>
+            <div style={{fontSize:9,color:"#15803d"}}>superadmin</div>
+          </div>}
+          <ChevronDown size={11} style={{color:"#64748b"}}/>
+        </button>
+        {profileOpen&&(
+          <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:200,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:12,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
+            <div style={{padding:"12px 14px",borderBottom:"1px solid var(--sa-card-border)"}}>
+              <div style={{fontSize:13,color:"var(--sa-text)",fontWeight:600}}>{saUser?.name}</div>
+              <div style={{fontSize:11,color:"var(--sa-muted)"}}>{saUser?.email}</div>
+              <Badge role="superadmin"/>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   // ── Theme tokens (light + dark readable contrast) ────────────
   const saTheme: React.CSSProperties = {
     ["--sa-bg" as any]: isDarkMode ? "#060810" : "#f1f5f9",
@@ -1514,14 +1504,13 @@ export default function SuperAdminPanel(){
     >
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} .fade-in{animation:fadeIn 0.25s ease-out} *{box-sizing:border-box}`}</style>
 
-      <VegFruBrandBar subtitle="Super Admin · Farm Fresh" />
+      <VegFruBrandBar subtitle="Super Admin · Farm Fresh" leftExtra={saBrandLeft} rightExtra={saBrandRight} />
 
       <div style={{display:"flex",flex:1,minHeight:0,overflow:"hidden"}}>
       <Sidebar/>
       {isMobile && sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:110}}/>}
 
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <Topbar/>
         <main style={{flex:1,overflow:"auto",padding:isMobile?12:24}}>
           <div className="fade-in" key={tab}>{TABS[tab]}</div>
         </main>

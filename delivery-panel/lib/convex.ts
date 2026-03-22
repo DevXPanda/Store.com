@@ -1,7 +1,7 @@
 const CURL = (process.env.NEXT_PUBLIC_CONVEX_URL || "").trim();
 
 const MISSING_CONVEX_MSG =
-  "Convex is not configured. Copy NEXT_PUBLIC_CONVEX_URL from admin-panel/.env.local into delivery-panel/.env.local (same value as your Convex dashboard / npx convex dev). Restart npm run dev.";
+  "Convex is not configured. Set NEXT_PUBLIC_CONVEX_URL in backend/.env.local (see backend/.env.local.example) and restart npm run dev.";
 
 export async function convexQuery(path: string, args: object = {}) {
   if (!CURL) return null;

@@ -12,6 +12,7 @@ import type * as adminAuth from "../adminAuth.js";
 import type * as adminPhoneAuth from "../adminPhoneAuth.js";
 import type * as aiChat from "../aiChat.js";
 import type * as auth from "../auth.js";
+import type * as customerRegistration from "../customerRegistration.js";
 import type * as deliveryPartnerAuth from "../deliveryPartnerAuth.js";
 import type * as orders from "../orders.js";
 import type * as products from "../products.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   adminPhoneAuth: typeof adminPhoneAuth;
   aiChat: typeof aiChat;
   auth: typeof auth;
+  customerRegistration: typeof customerRegistration;
   deliveryPartnerAuth: typeof deliveryPartnerAuth;
   orders: typeof orders;
   products: typeof products;

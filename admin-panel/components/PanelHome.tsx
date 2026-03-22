@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Leaf,
   ArrowRight,
@@ -17,11 +18,34 @@ const STORE = process.env.NEXT_PUBLIC_STORE_URL || "http://localhost:3000";
 const SUPERADMIN = process.env.NEXT_PUBLIC_SUPERADMIN_URL || "http://localhost:3003";
 
 export default function PanelHome() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FEFAE0]" aria-hidden />}>
+      <PanelHomeInner />
+    </Suspense>
+  );
+}
+
+function PanelHomeInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [signInOpen, setSignInOpen] = useState(false);
+  const [signInTab, setSignInTab] = useState<"phone" | "email">("phone");
+
+  useEffect(() => {
+    if (searchParams.get("signin") === "1") {
+      setSignInTab("email");
+      setSignInOpen(true);
+      router.replace("/", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   return (
     <div className="min-h-screen bg-[#FEFAE0] text-gray-900">
-      <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />
+      <SignInModal
+        open={signInOpen}
+        onClose={() => setSignInOpen(false)}
+        initialAuthTab={signInTab}
+      />
       <div className="bg-forest-800 text-green-100 text-xs py-1.5 text-center font-body tracking-wide">
         <span className="inline-flex items-center justify-center gap-2 px-4">
           <MapPin className="w-3 h-3 shrink-0" />
@@ -56,7 +80,7 @@ export default function PanelHome() {
               </a>
               <button
                 type="button"
-                onClick={() => setSignInOpen(true)}
+                onClick={() => { setSignInTab("phone"); setSignInOpen(true); }}
                 className="inline-flex items-center gap-2 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-lg active:scale-[0.98]"
               >
                 Sign in
@@ -105,7 +129,7 @@ export default function PanelHome() {
               <div className="flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={() => setSignInOpen(true)}
+                  onClick={() => { setSignInTab("phone"); setSignInOpen(true); }}
                   className="group flex items-center gap-3 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-7 py-4 rounded-2xl transition-all hover:shadow-xl hover:shadow-green-900/25 active:scale-95"
                 >
                   <Shield className="w-4 h-4" />
@@ -179,8 +203,8 @@ export default function PanelHome() {
               Store
             </a>
             <span className="text-gray-300">·</span>
-            <Link href="/admin/login" className="hover:text-forest-800">
-              Admin login
+            <Link href="/?signin=1" className="hover:text-forest-800">
+              Admin sign-in
             </Link>
           </div>
         </div>

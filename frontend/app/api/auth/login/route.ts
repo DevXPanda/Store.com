@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     if (!CONVEX_URL) {
       return NextResponse.json(
-        { success: false, error: 'Auth service is not configured. Add NEXT_PUBLIC_CONVEX_URL in frontend/.env.local and restart.' },
+        { success: false, error: 'Auth service is not configured. Add NEXT_PUBLIC_CONVEX_URL in backend/.env.local and restart.' },
         { status: 500 }
       )
     }

@@ -36,13 +36,12 @@ admin-panel/
 │           └── page.tsx        ← Login page
 ├── components/                 ← (shared components if needed)
 ├── tailwind.config.js
-├── next.config.js
-└── .env.local.example
+├── next.config.js   # loads ../backend/.env.local
 ```
 
 ## Setup
 ```bash
 npm install
-cp .env.local.example .env.local
+# Secrets: backend/.env.local (see backend/.env.local.example at repo root)
 npm run dev    # → http://localhost:3001/admin/login
 ```

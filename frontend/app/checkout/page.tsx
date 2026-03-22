@@ -158,7 +158,7 @@ export default function CheckoutPage() {
 
     const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim()
     if (!rzpKey) {
-      alert('Online payment is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID to .env.local or choose Cash on Delivery.')
+      alert('Online payment is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID to backend/.env.local or choose Cash on Delivery.')
       setPayLoading(false)
       return
     }

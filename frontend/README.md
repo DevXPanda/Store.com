@@ -34,13 +34,12 @@ frontend/
 │   ├── Newsletter.tsx        ← Email subscribe
 │   └── Footer.tsx            ← Full footer
 ├── tailwind.config.js
-├── next.config.js
-└── .env.local.example
+├── next.config.js   # loads ../backend/.env.local
 ```
 
 ## Setup
 ```bash
 npm install
-cp .env.local.example .env.local   # add NEXT_PUBLIC_CONVEX_URL
+# Secrets: copy backend/.env.local.example → backend/.env.local (repo root)
 npm run dev                         # → http://localhost:3000
 ```

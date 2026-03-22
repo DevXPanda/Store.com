@@ -44,7 +44,7 @@ export default function AdminPendingPage() {
 
   useEffect(() => {
     if (state.kind === "approved") {
-      const t = setTimeout(() => router.replace("/admin/login"), 4000);
+      const t = setTimeout(() => router.replace("/?signin=1"), 4000);
       return () => clearTimeout(t);
     }
   }, [state.kind, router]);
@@ -89,7 +89,7 @@ export default function AdminPendingPage() {
               Sign in with phone to view your application status.
             </p>
             <Link
-              href="/admin/login"
+              href="/?signin=1"
               className="inline-flex text-forest-700 font-semibold underline"
             >
               Go to admin sign-in
@@ -127,7 +127,7 @@ export default function AdminPendingPage() {
               with your phone (OTP) to access the dashboard.
             </p>
             <Link
-              href="/admin/login"
+              href="/?signin=1"
               className="inline-flex items-center justify-center rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-medium px-6 py-3 text-sm"
             >
               Back to sign-in
@@ -151,7 +151,7 @@ export default function AdminPendingPage() {
               Redirecting to sign-in…
             </p>
             <Link
-              href="/admin/login"
+              href="/?signin=1"
               className="inline-flex items-center justify-center rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-medium px-6 py-3 text-sm"
             >
               Sign in now
@@ -172,7 +172,7 @@ export default function AdminPendingPage() {
               allowed.
             </p>
             <Link
-              href="/admin/login"
+              href="/?signin=1"
               className="inline-flex items-center justify-center rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-medium px-6 py-3 text-sm"
             >
               Back to sign-in
@@ -187,7 +187,7 @@ export default function AdminPendingPage() {
               after phone verification.
             </p>
             <Link
-              href="/admin/login"
+              href="/?signin=1"
               className="inline-flex items-center justify-center rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-medium px-6 py-3 text-sm"
             >
               Go to sign-in

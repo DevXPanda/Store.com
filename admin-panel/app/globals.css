@@ -54,3 +54,13 @@ body {
 
 input, select, textarea, button { font-family: inherit; }
 input::placeholder { color: rgba(255,255,255,0.25); }
+
+/* Admin dashboard theme (synced from /admin page to <html>) */
+html[data-admin-theme="dark"] body {
+  background: #060810;
+  color: #f1f5f9;
+}
+html[data-admin-theme="light"] body {
+  background: #f1f5f9;
+  color: #0f172a;
+}

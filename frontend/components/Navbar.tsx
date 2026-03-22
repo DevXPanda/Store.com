@@ -8,7 +8,7 @@ import { mapConvexProduct, type CatalogProduct } from '@/lib/catalog'
 import { useConvexQuery } from '@/lib/convexFetch'
 
 export default function Navbar({ cartCount, onCartClick }: { cartCount: number; onCartClick: () => void }) {
-  const { user, login, logout, loading } = useAuth()
+  const { user, login, setSession, logout, loading } = useAuth()
   const router = useRouter()
   const [scrolled, setScrolled]         = useState(false)
   const [mobileOpen, setMobileOpen]     = useState(false)
@@ -24,7 +24,12 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
   const [submitting, setSubmitting]     = useState(false)
   const [error, setError]               = useState('')
   const [success, setSuccess]           = useState('')
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' })
+  const [registerStep, setRegisterStep] = useState<'details' | 'otp'>('details')
+  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email')
+  const [phoneLoginStep, setPhoneLoginStep] = useState<'input' | 'otp'>('input')
+  const [otpCode, setOtpCode] = useState('')
+  const [devOtpHint, setDevOtpHint] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
 
@@ -75,36 +80,104 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
 
   const openModal = (register = false) => {
     setIsRegister(register); setError(''); setSuccess('')
-    setForm({ name: '', email: '', password: '' })
+    setForm({ name: '', email: '', password: '', phone: '' })
+    setRegisterStep('details')
+    setLoginMode('email')
+    setPhoneLoginStep('input')
+    setOtpCode('')
+    setDevOtpHint(null)
     setModalOpen(true); setMobileOpen(false)
   }
-  const closeModal = () => { setModalOpen(false); setError(''); setSuccess('') }
+  const closeModal = () => {
+    setModalOpen(false); setError(''); setSuccess('')
+    setRegisterStep('details')
+    setPhoneLoginStep('input')
+    setOtpCode('')
+    setDevOtpHint(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(''); setSubmitting(true)
-    if (isRegister) {
-      try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    setSubmitting(true)
+    try {
+      if (isRegister && registerStep === 'otp') {
+        const res = await fetch('/api/auth/otp/email/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, otp: otpCode }),
         })
         const data = await res.json()
-        if (data.success) {
-          setSuccess('Account created! Signing you in...')
-          const r = await login(form.email, form.password)
-          if (r.success) setTimeout(closeModal, 800)
-          else {
-            setSuccess('')
-            setError(r.error || 'Registered, but auto-login failed. Please sign in.')
-          }
-        } else { setError(data.error || 'Registration failed.') }
-      } catch { setError('Network error. Try again.') }
-    } else {
+        if (!data.success || !data.token || !data.user) {
+          setError(data.error || 'Invalid code')
+          return
+        }
+        setSession(data.token, data.user)
+        setSuccess('Welcome to VegFru!')
+        setTimeout(closeModal, 600)
+        return
+      }
+      if (isRegister) {
+        const res = await fetch('/api/auth/otp/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            password: form.password,
+            phone: form.phone || undefined,
+          }),
+        })
+        const data = await res.json()
+        if (!data.success) {
+          setError(data.error || 'Could not send code')
+          return
+        }
+        if (data.devOtp) setDevOtpHint(String(data.devOtp))
+        setRegisterStep('otp')
+        setSuccess('Check your email for a verification code.')
+        return
+      }
+      if (loginMode === 'phone' && phoneLoginStep === 'otp') {
+        const res = await fetch('/api/auth/phone/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: form.phone, otp: otpCode }),
+        })
+        const data = await res.json()
+        if (!data.success || !data.token || !data.user) {
+          setError(data.error || 'Invalid code')
+          return
+        }
+        setSession(data.token, data.user)
+        setSuccess('Welcome back!')
+        setTimeout(closeModal, 600)
+        return
+      }
+      if (loginMode === 'phone') {
+        const res = await fetch('/api/auth/phone/request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: form.phone }),
+        })
+        const data = await res.json()
+        if (!data.success) {
+          setError(data.error || 'Could not send SMS')
+          return
+        }
+        setPhoneLoginStep('otp')
+        setSuccess('Enter the code sent to your phone.')
+        return
+      }
       const result = await login(form.email, form.password)
-      if (result.success) { setSuccess('Welcome back! 🌿'); setTimeout(closeModal, 600) }
+      if (result.success) { setSuccess('Welcome back!'); setTimeout(closeModal, 600) }
       else setError(result.error || 'Invalid email or password.')
+    } catch {
+      setError('Something went wrong. Try again.')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   const initials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'
@@ -281,43 +354,138 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
               <p className="text-green-200 text-sm mt-1">{isRegister ? 'Create an account to track orders and save your details' : 'Sign in to track orders & get exclusive deals'}</p>
             </div>
             <form onSubmit={handleSubmit} className="p-6 pt-4 flex flex-col gap-4">
-              {isRegister && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Full name</label>
-                  <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Priya Sharma"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
-                <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
-                <div className="relative">
-                  <input type={showPass ? 'text' : 'password'} required value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={isRegister ? 'Min 6 characters' : '••••••••'}
-                    className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {!isRegister && (
+                <div className="flex rounded-xl border border-gray-200 p-0.5 bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => { setLoginMode('email'); setPhoneLoginStep('input'); setOtpCode(''); setError('') }}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${loginMode === 'email' ? 'bg-white shadow text-forest-800' : 'text-gray-500'}`}
+                  >
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLoginMode('phone'); setPhoneLoginStep('input'); setOtpCode(''); setError('') }}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${loginMode === 'phone' ? 'bg-white shadow text-forest-800' : 'text-gray-500'}`}
+                  >
+                    Phone OTP
                   </button>
                 </div>
-              </div>
+              )}
+
+              {isRegister && registerStep === 'details' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Full name</label>
+                    <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Priya Sharma"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
+                    <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
+                    <div className="relative">
+                      <input type={showPass ? 'text' : 'password'} required value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 6 characters"
+                        className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Phone <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="tel" inputMode="numeric" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="10-digit mobile for SMS updates"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                  </div>
+                  <p className="text-xs text-gray-500">We&apos;ll email a verification code to your address. Add SMS-capable Twilio Verify to also sign in with phone.</p>
+                </>
+              )}
+
+              {isRegister && registerStep === 'otp' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                    <input type="email" readOnly value={form.email} className="w-full px-4 py-3 border border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-600" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Verification code</label>
+                    <input type="text" inputMode="numeric" autoComplete="one-time-code" required value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="6-digit code"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all tracking-widest font-mono text-center text-lg" />
+                  </div>
+                  {devOtpHint && (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 font-mono">Dev only: {devOtpHint}</p>
+                  )}
+                  <button type="button" onClick={() => { setRegisterStep('details'); setOtpCode(''); setError('') }} className="text-sm text-green-700 hover:underline text-left">
+                    ← Edit details
+                  </button>
+                </>
+              )}
+
+              {!isRegister && loginMode === 'email' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Email address</label>
+                    <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="you@example.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
+                    <div className="relative">
+                      <input type={showPass ? 'text' : 'password'} required value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••"
+                        className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-right -mt-2">
+                    <a href="/forgot-password" className="text-xs text-green-600 hover:text-green-700">Forgot password?</a>
+                  </div>
+                </>
+              )}
+
+              {!isRegister && loginMode === 'phone' && phoneLoginStep === 'input' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Mobile number</label>
+                  <input type="tel" inputMode="numeric" required value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="10-digit number on your account"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all" />
+                  <p className="text-xs text-gray-500 mt-1.5">Uses Twilio Verify (same as admin SMS). Configure env on the server.</p>
+                </div>
+              )}
+
+              {!isRegister && loginMode === 'phone' && phoneLoginStep === 'otp' && (
+                <>
+                  <p className="text-sm text-gray-600">Code sent to <span className="font-mono font-semibold">+91 {form.phone.replace(/\D/g, '').slice(-10)}</span></p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">SMS code</label>
+                    <input type="text" inputMode="numeric" autoComplete="one-time-code" required value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="Enter code"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-500 font-mono tracking-widest text-center text-lg" />
+                  </div>
+                  <button type="button" onClick={() => { setPhoneLoginStep('input'); setOtpCode(''); setError('') }} className="text-sm text-green-700 hover:underline text-left">
+                    ← Change number
+                  </button>
+                </>
+              )}
+
               {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-xl">{error}</div>}
               {success && <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2.5 rounded-xl">{success}</div>}
               <button type="submit" disabled={submitting}
                 className="w-full bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white font-medium py-3 rounded-xl transition-all hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {submitting ? (isRegister ? 'Creating...' : 'Signing in...') : (isRegister ? 'Create account' : 'Sign in')}
+                {submitting ? 'Please wait…' : (
+                  isRegister
+                    ? (registerStep === 'otp' ? 'Verify & continue' : 'Send verification email')
+                    : loginMode === 'phone'
+                      ? (phoneLoginStep === 'otp' ? 'Verify & sign in' : 'Send SMS code')
+                      : 'Sign in'
+                )}
               </button>
-              {!isRegister && (
-                <div className="text-right -mt-2">
-                  <a href="/forgot-password" className="text-xs text-green-600 hover:text-green-700">Forgot password?</a>
-                </div>
-              )}
               <p className="text-center text-sm text-gray-500">
                 {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-                <button type="button" onClick={() => { setIsRegister(!isRegister); setError(''); setSuccess('') }} className="text-green-600 hover:text-green-700 font-medium">
+                <button type="button" onClick={() => { setIsRegister(!isRegister); setError(''); setSuccess(''); setRegisterStep('details'); setPhoneLoginStep('input'); setOtpCode('') }} className="text-green-600 hover:text-green-700 font-medium">
                   {isRegister ? 'Sign in' : 'Register free'}
                 </button>
               </p>

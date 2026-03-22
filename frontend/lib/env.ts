@@ -1,4 +1,6 @@
 /** Environment variable validation & typed access */
+import { getMailFrom, isSmtpConfigured } from "./mail";
+
 function requireEnv(key: string, fallback?: string): string {
   const value = process.env[key]
   if (!value && process.env.NODE_ENV === 'production' && !fallback) {
@@ -13,14 +15,15 @@ export const env = {
   razorpayKeyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
   razorpaySecret:process.env.RAZORPAY_KEY_SECRET || '',
   groqApiKey:    process.env.GROQ_API_KEY || '',
-  resendApiKey:  process.env.RESEND_API_KEY || '',
-  fromEmail:     process.env.FROM_EMAIL || 'orders@vegfru.in',
+  get fromEmail() {
+    return getMailFrom();
+  },
   fast2smsKey:   process.env.FAST2SMS_API_KEY || '',
   appUrl:        process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   gaId:          process.env.NEXT_PUBLIC_GA_ID || '',
   get isProduction() { return process.env.NODE_ENV === 'production' },
   get hasPayments()  { return !!this.razorpayKeyId && !!this.razorpaySecret },
-  get hasEmail()     { return !!this.resendApiKey },
+  get hasEmail()     { return isSmtpConfigured() },
   get hasSMS()       { return !!this.fast2smsKey },
   get hasAI()        { return !!this.groqApiKey },
 }

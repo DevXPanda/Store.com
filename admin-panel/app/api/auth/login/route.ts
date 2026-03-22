@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { email, password } = await req.json()
     if (!email || !password) return NextResponse.json({ success: false, error: 'Fields required' }, { status: 400 })
     if (!CONVEX_URL) {
-      return NextResponse.json({ success: false, error: 'NEXT_PUBLIC_CONVEX_URL is missing in admin-panel/.env.local' }, { status: 500 })
+      return NextResponse.json({ success: false, error: 'NEXT_PUBLIC_CONVEX_URL is missing in backend/.env.local' }, { status: 500 })
     }
 
     let user: { id: string; name: string; email: string; role: string } | null = null

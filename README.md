@@ -32,14 +32,14 @@ npx convex run auth:seedAdminAndDelivery
 npx convex run products:seedProducts
 ```
 
-### 3. Run All Panels
+### 3. Environment (one file for all panels)
 ```bash
-# Copy env files first:
-cp frontend/.env.local.example frontend/.env.local
-cp admin-panel/.env.local.example admin-panel/.env.local
-cp delivery-panel/.env.local.example delivery-panel/.env.local
-# Edit each .env.local and paste your NEXT_PUBLIC_CONVEX_URL
+cp backend/.env.local.example backend/.env.local
+# Edit backend/.env.local — set NEXT_PUBLIC_CONVEX_URL, JWT_SECRET, etc.
+```
 
+### 4. Run All Panels
+```bash
 # Then run:
 cd frontend       && npm install && npm run dev   # :3000
 cd admin-panel    && npm install && npm run dev   # :3001
@@ -172,10 +172,12 @@ cd backend && npx convex deploy
 
 ### Step 2: Deploy to Vercel (3 projects)
 ```bash
-# Create 3 separate GitHub repos and import to Vercel
-# Set environment variables for each:
+# Create separate Vercel projects per app. Use the same variable names as
+# backend/.env.local.example — copy values from your production backend/.env
+# (Convex URL, JWT_SECRET, Razorpay, Resend, etc.) into each project’s env UI.
 
-# frontend/.env.production:
+# Minimum per app: NEXT_PUBLIC_CONVEX_URL (+ JWT_SECRET where used).
+# Full list matches backend/.env.local.example.
 NEXT_PUBLIC_CONVEX_URL=https://your-prod.convex.cloud
 JWT_SECRET=your-prod-secret
 GROQ_API_KEY=gsk_...
@@ -186,13 +188,6 @@ FROM_EMAIL=orders@vegfru.in
 FAST2SMS_API_KEY=...
 NEXT_PUBLIC_APP_URL=https://vegfru.in
 NEXT_PUBLIC_GA_ID=G-...
-
-# admin-panel/.env.production:
-NEXT_PUBLIC_CONVEX_URL=https://your-prod.convex.cloud
-JWT_SECRET=your-prod-secret  # SAME as frontend
-
-# delivery-panel/.env.production:
-NEXT_PUBLIC_CONVEX_URL=https://your-prod.convex.cloud
 ```
 
 ### Step 3: Razorpay Webhook
@@ -228,7 +223,7 @@ npx convex logs                             # View function logs
 | `_generated/api` missing | Run `npx convex dev` |
 | Login fails on admin panel | Try demo accounts shown on login page |
 | Products show empty | Run `npx convex run products:seedProducts` |
-| Emails not sending | Add `RESEND_API_KEY` + `FROM_EMAIL` to .env.local |
-| SMS not sending | Add `FAST2SMS_API_KEY` to .env.local |
-| Razorpay not loading | Add `NEXT_PUBLIC_RAZORPAY_KEY_ID` to .env.local |
-| Admin panel not protecting | Check `JWT_SECRET` is same in admin + frontend |
+| Emails not sending | Add `RESEND_API_KEY` + `FROM_EMAIL` to `backend/.env.local` |
+| SMS not sending | Add `FAST2SMS_API_KEY` to `backend/.env.local` |
+| Razorpay not loading | Add `NEXT_PUBLIC_RAZORPAY_KEY_ID` to `backend/.env.local` |
+| Admin panel not protecting | Check `JWT_SECRET` matches in `backend/.env.local` (used by all panels) |

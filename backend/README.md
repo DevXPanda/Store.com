@@ -88,7 +88,9 @@ backend/
 ```
 
 ## Environment Variables
+Copy `.env.local.example` → `.env.local` and fill values. This file is the **single source of truth** for Convex, JWT, and all Next.js apps (`frontend`, `admin-panel`, `delivery-panel`, `superadmin-panel`), which load it via `load-env.js` in each app’s `next.config.js`.
 ```env
 NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 JWT_SECRET=your-super-secret-key
+# …see .env.local.example for the full list
 ```

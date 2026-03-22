@@ -8,6 +8,26 @@ export const getUserByEmail = query({
   },
 });
 
+function normalizePhone10(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+}
+
+/** Customer login via phone + OTP — phone stored as 10 digits. */
+export const getCustomerByPhone = query({
+  args: { phone: v.string() },
+  handler: async (ctx, args) => {
+    const phone = normalizePhone10(args.phone);
+    if (phone.length !== 10) return null;
+    const u = await ctx.db
+      .query("users")
+      .withIndex("by_phone", (q) => q.eq("phone", phone))
+      .first();
+    if (!u || u.role !== "customer" || !u.isActive) return null;
+    return u;
+  },
+});
+
 export const getUserById = query({
   args: { id: v.id("users") },
   handler: async (ctx, args) => ctx.db.get(args.id),
