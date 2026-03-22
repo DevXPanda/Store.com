@@ -1,0 +1,15 @@
+# Render Blueprint — https://docs.render.com/docs/infrastructure-as-code
+# After connecting this repo: Dashboard → New → Blueprint → apply this file.
+# Set secrets in the service Environment: NEXT_PUBLIC_CONVEX_URL, JWT_SECRET (and any others from backend/.env.local.example).
+
+services:
+  - type: web
+    name: vegfru-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

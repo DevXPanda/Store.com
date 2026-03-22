@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "npx convex dev",
     "deploy": "npx convex deploy",
+    "build": "next build",
+    "start": "next start",
     "api:dev": "next dev -p 3003",
     "api:build": "next build"
   },

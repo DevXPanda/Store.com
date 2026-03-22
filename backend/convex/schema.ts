@@ -205,6 +205,7 @@ export default defineSchema({
       timestamp: v.number(),
     })),
     totalMessages: v.number(),
+    ordersPlaced: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
