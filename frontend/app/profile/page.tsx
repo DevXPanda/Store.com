@@ -75,28 +75,39 @@ export default function ProfilePage() {
   useEffect(() => {
     if (loading) return
     if (!user) { router.replace('/'); return }
-    setForm(f => ({ ...f, name: user.name || '', phone: user.phone || '' }))
-    // Fetch latest profile from Convex so stale cookie data does not override production UI.
-    if (CONVEX_URL && user.id) {
+    if (!editing) {
+      setForm(f => ({ ...f, name: user.name || '', phone: user.phone || '' }))
+    }
+    // Fetch latest profile by email (stable across deployments) to avoid stale/nonexistent ids.
+    if (CONVEX_URL && user.email) {
       fetch(`${CONVEX_URL}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: 'auth:getUserById', args: { id: user.id } }),
+        body: JSON.stringify({ path: 'auth:getUserByEmail', args: { email: user.email } }),
       })
         .then(r => r.json())
         .then(d => {
           const latest = d?.value
           if (!latest) return
+          if (editing) return
           setForm(f => ({
             ...f,
             name: latest.name || '',
             phone: latest.phone || '',
           }))
-          updateUser({
-            name: latest.name || user.name,
-            email: latest.email || user.email,
-            role: latest.role || user.role,
-          })
+          if (
+            latest.name !== user.name ||
+            latest.email !== user.email ||
+            latest.role !== user.role ||
+            (latest.phone || '') !== (user.phone || '')
+          ) {
+            updateUser({
+              name: latest.name || user.name,
+              email: latest.email || user.email,
+              role: latest.role || user.role,
+              phone: latest.phone || '',
+            })
+          }
         })
         .catch(() => {})
     }
@@ -112,7 +123,7 @@ export default function ProfilePage() {
         }
       }).catch(() => {})
     }
-  }, [user, router, loading])
+  }, [user, router, loading, editing, updateUser])
 
   useEffect(() => {
     try {
@@ -130,25 +141,49 @@ export default function ProfilePage() {
     if (!form.name.trim()) { setError('Name is required'); return }
     setSaving(true); setError('')
     try {
-      if (CONVEX_URL && user.id) {
+      if (CONVEX_URL) {
+        let resolvedUserId = ''
+        if (user.email) {
+          const qRes = await fetch(`${CONVEX_URL}/api/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: 'auth:getUserByEmail', args: { email: user.email } }),
+          })
+          const qData = await qRes.json()
+          resolvedUserId = qData?.value?._id
+        }
+        if (!resolvedUserId && user.id) resolvedUserId = user.id
+        if (!resolvedUserId) throw new Error('Could not identify your account. Please sign in again.')
+
         const res = await fetch(`${CONVEX_URL}/api/mutation`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'auth:updateUser', args: { id: user.id, name: form.name, phone: form.phone } }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'auth:updateUser',
+            args: {
+              id: resolvedUserId,
+              name: form.name.trim(),
+              phone: form.phone.replace(/\D/g, '').slice(-10),
+            },
+          }),
         })
         const data = await res.json()
         if (data?.status === 'error' || data?.errorMessage) {
           throw new Error(data.errorMessage || 'Could not save profile')
         }
       }
-      updateUser({ name: form.name, phone: form.phone })
+      updateUser({ name: form.name.trim(), phone: form.phone.replace(/\D/g, '').slice(-10) })
       setSaved(true); setEditing(false)
       setTimeout(() => setSaved(false), 2500)
-    } catch { setError('Failed to save. Try again.') }
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save. Try again.')
+    }
     setSaving(false)
   }
 
   const onFieldChange = (field: keyof FormState, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    const nextValue = field === 'phone' ? value.replace(/\D/g, '').slice(0, 10) : value
+    setForm((prev) => ({ ...prev, [field]: nextValue }))
   }
 
   const initials = user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'

@@ -68,6 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...partial };
+      if (
+        prev.id === next.id &&
+        prev.name === next.name &&
+        prev.email === next.email &&
+        prev.role === next.role &&
+        prev.phone === next.phone
+      ) {
+        return prev;
+      }
       Cookies.set("vegfru_user", JSON.stringify(next), { expires: 7 });
       return next;
     });
