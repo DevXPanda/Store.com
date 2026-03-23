@@ -75,7 +75,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (loading) return
     if (!user) { router.replace('/'); return }
-    setForm(f => ({ ...f, name: user.name || '', }))
+    setForm(f => ({ ...f, name: user.name || '', phone: user.phone || '' }))
     // Fetch latest profile from Convex so stale cookie data does not override production UI.
     if (CONVEX_URL && user.id) {
       fetch(`${CONVEX_URL}/api/query`, {
@@ -131,12 +131,16 @@ export default function ProfilePage() {
     setSaving(true); setError('')
     try {
       if (CONVEX_URL && user.id) {
-        await fetch(`${CONVEX_URL}/api/mutation`, {
+        const res = await fetch(`${CONVEX_URL}/api/mutation`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: 'auth:updateUser', args: { id: user.id, name: form.name, phone: form.phone } }),
         })
+        const data = await res.json()
+        if (data?.status === 'error' || data?.errorMessage) {
+          throw new Error(data.errorMessage || 'Could not save profile')
+        }
       }
-      updateUser({ name: form.name })
+      updateUser({ name: form.name, phone: form.phone })
       setSaved(true); setEditing(false)
       setTimeout(() => setSaved(false), 2500)
     } catch { setError('Failed to save. Try again.') }
