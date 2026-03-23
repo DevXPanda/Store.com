@@ -22,6 +22,8 @@ type Props = {
 export function PartnerApplyModal({ open, onClose }: Props) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +33,8 @@ export function PartnerApplyModal({ open, onClose }: Props) {
     if (!open) {
       setName("");
       setPhone("");
+      setEmail("");
+      setPassword("");
       setCity("");
       setError("");
       setDone(false);
@@ -48,8 +52,15 @@ export function PartnerApplyModal({ open, onClose }: Props) {
       await convexMutation("deliveryPartnerAuth:submitDeliveryPartnerApplication", {
         name: name.trim(),
         phone,
+        email: email.trim().toLowerCase(),
+        password,
         city,
       });
+      await fetch("/api/delivery/apply/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), city }),
+      }).catch(() => {});
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -152,6 +163,36 @@ export function PartnerApplyModal({ open, onClose }: Props) {
                 <p className="mt-1 text-xs text-[#475569]">
                   {10 - phone.length > 0 ? `${10 - phone.length} digit(s) remaining` : "Ready"}
                 </p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#0f172a]">
+                  Email *
+                </label>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-[#0f172a] shadow-sm outline-none placeholder:text-slate-400 focus:border-forest-600 focus:ring-2 focus:ring-forest-500/25"
+                  placeholder="you@example.com"
+                  style={{ color: "#0f172a" }}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#0f172a]">
+                  Password *
+                </label>
+                <input
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-[#0f172a] shadow-sm outline-none placeholder:text-slate-400 focus:border-forest-600 focus:ring-2 focus:ring-forest-500/25"
+                  placeholder="Minimum 6 characters"
+                  style={{ color: "#0f172a" }}
+                />
               </div>
 
               <div>

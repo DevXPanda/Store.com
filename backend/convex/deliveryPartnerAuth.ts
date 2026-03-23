@@ -22,6 +22,8 @@ export const submitDeliveryPartnerApplication = mutation({
   args: {
     name: v.string(),
     phone: v.string(),
+    email: v.string(),
+    password: v.string(),
     city: v.string(),
   },
   handler: async (ctx, args) => {
@@ -29,6 +31,9 @@ export const submitDeliveryPartnerApplication = mutation({
     if (phone.length !== 10) throw new Error("Enter a valid 10-digit mobile number");
     const name = args.name.trim();
     if (name.length < 2) throw new Error("Enter your full name");
+    const email = args.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address");
+    if (args.password.trim().length < 6) throw new Error("Password must be at least 6 characters");
     const city = args.city.trim();
     if (!city) throw new Error("Select your city");
 
@@ -39,6 +44,13 @@ export const submitDeliveryPartnerApplication = mutation({
     if (existingUser && existingUser.role === "delivery") {
       throw new Error("This number is already registered. Sign in with OTP.");
     }
+    const existingEmailUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (existingEmailUser && existingEmailUser.role === "delivery") {
+      throw new Error("This email is already registered. Sign in instead.");
+    }
 
     const forPhone = await ctx.db
       .query("deliveryPartnerApplications")
@@ -48,10 +60,21 @@ export const submitDeliveryPartnerApplication = mutation({
     if (pending) {
       throw new Error("We already have an application under review for this number.");
     }
+    const forEmail = await ctx.db
+      .query("deliveryPartnerApplications")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+    const pendingEmail = forEmail.find((a) => a.status === "pending");
+    if (pendingEmail) {
+      throw new Error("We already have an application under review for this email.");
+    }
+    const passwordHash = bcrypt.hashSync(args.password.trim(), 10);
 
     await ctx.db.insert("deliveryPartnerApplications", {
       name,
       phone,
+      email,
+      passwordHash,
       city,
       submittedAt: Date.now(),
       status: "pending",
@@ -137,14 +160,14 @@ export const approveDeliveryPartnerApplication = mutation({
       .first();
     if (existing) throw new Error("A user already exists for this phone number");
 
-    const email = `delivery_${app.phone}@partners.vegfru.in`;
+    const email = app.email?.trim().toLowerCase() || `delivery_${app.phone}@partners.vegfru.in`;
     const emailTaken = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", email))
       .first();
     if (emailTaken) throw new Error("Account conflict — contact support");
 
-    const passwordHash = bcrypt.hashSync(randomHex(32), 10);
+    const passwordHash = app.passwordHash || bcrypt.hashSync(randomHex(32), 10);
 
     const userId = await ctx.db.insert("users", {
       name: app.name,
@@ -276,6 +299,33 @@ export const verifyDeliveryOtp = mutation({
 
     await ctx.db.patch(user._id, { lastLogin: Date.now() });
 
+    return {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? phone,
+        rating: 4.8,
+      },
+    };
+  },
+});
+
+export const loginDeliveryByPhone = mutation({
+  args: { phone: v.string() },
+  handler: async (ctx, args) => {
+    const phone = normalizePhone(args.phone);
+    if (phone.length !== 10) throw new Error("Invalid phone number");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_phone", (q) => q.eq("phone", phone))
+      .first();
+    if (!user || user.role !== "delivery" || !user.isActive) {
+      throw new Error("Invalid login");
+    }
+
+    await ctx.db.patch(user._id, { lastLogin: Date.now() });
     return {
       user: {
         id: user._id,

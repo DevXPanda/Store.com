@@ -87,6 +87,8 @@ export default defineSchema({
   deliveryPartnerApplications: defineTable({
     name: v.string(),
     phone: v.string(),
+    email: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
     city: v.string(),
     submittedAt: v.number(),
     status: v.union(
@@ -100,6 +102,7 @@ export default defineSchema({
     userId: v.optional(v.id("users")),
   })
     .index("by_phone", ["phone"])
+    .index("by_email", ["email"])
     .index("by_status", ["status"]),
 
   deliveryOtps: defineTable({

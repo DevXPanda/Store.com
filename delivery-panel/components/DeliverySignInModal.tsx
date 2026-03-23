@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, Loader2, ArrowRight, Smartphone } from "lucide-react";
-import { convexMutation } from "@/lib/convex";
+import { apiUrl } from "@/lib/apiBase";
 
 type Props = {
   open: boolean;
@@ -14,6 +14,9 @@ export function DeliverySignInModal({ open, onClose }: Props) {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [authMode, setAuthMode] = useState<"phone" | "email">("phone");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +26,9 @@ export function DeliverySignInModal({ open, onClose }: Props) {
     if (!open) {
       setPhone("");
       setOtp("");
+      setAuthMode("phone");
+      setEmail("");
+      setPassword("");
       setStep("phone");
       setError("");
       setDevCode(null);
@@ -69,11 +75,19 @@ export function DeliverySignInModal({ open, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      const res = (await convexMutation("deliveryPartnerAuth:verifyDeliveryOtp", {
-        phone: digits,
-        code,
-      })) as { user: { id: string; name: string; email: string; phone: string; rating: number } };
-      const u = res.user;
+      const response = await fetch("/api/delivery/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: digits, code }),
+      });
+      const json = (await response.json()) as {
+        error?: string;
+        user?: { id: string; name: string; email: string; phone: string; rating: number };
+      };
+      if (!response.ok || !json.user) {
+        throw new Error(json.error || "Verification failed");
+      }
+      const u = json.user;
       localStorage.setItem(
         "vegfru_delivery_user",
         JSON.stringify({
@@ -88,6 +102,42 @@ export function DeliverySignInModal({ open, onClose }: Props) {
       router.push("/delivery");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");
+    }
+    setLoading(false);
+  }
+
+  async function loginWithEmail() {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized || !password) {
+      setError("Enter email and password");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/auth/login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalized, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.user || data.user.role !== "delivery") {
+        throw new Error(data.error || "Invalid delivery credentials");
+      }
+      localStorage.setItem(
+        "vegfru_delivery_user",
+        JSON.stringify({
+          name: data.user.name,
+          email: data.user.email,
+          phone: data.user.phone || "",
+          id: data.user.id,
+          rating: 4.8,
+        })
+      );
+      onClose();
+      router.push("/delivery");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Login failed");
     }
     setLoading(false);
   }
@@ -131,8 +181,30 @@ export function DeliverySignInModal({ open, onClose }: Props) {
           </div>
         )}
 
-        {step === "phone" ? (
+        {authMode === "phone" ? (
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAuthMode("phone")}
+                className="rounded-lg bg-forest-700 px-3 py-2 text-xs font-semibold text-white"
+              >
+                Mobile OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("email");
+                  setStep("phone");
+                  setError("");
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+              >
+                Email login
+              </button>
+            </div>
+            {step === "phone" ? (
+              <>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#0f172a]">
                 Mobile number
@@ -157,8 +229,8 @@ export function DeliverySignInModal({ open, onClose }: Props) {
               {loading ? <Loader2 className="h-4 w-4 animate-spin-slow" /> : <ArrowRight className="h-4 w-4" />}
               Send OTP
             </button>
-          </div>
-        ) : (
+              </>
+            ) : (
           <div className="space-y-4">
             <p className="text-sm text-[#475569]">
               Enter the code sent to{" "}
@@ -206,6 +278,65 @@ export function DeliverySignInModal({ open, onClose }: Props) {
                 Verify &amp; continue
               </button>
             </div>
+          </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("phone");
+                  setError("");
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+              >
+                Mobile OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode("email")}
+                className="rounded-lg bg-forest-700 px-3 py-2 text-xs font-semibold text-white"
+              >
+                Email login
+              </button>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#0f172a]">
+                Email
+              </label>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-[#0f172a] outline-none placeholder:text-slate-400 focus:border-forest-600 focus:ring-2 focus:ring-forest-500/25"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#0f172a]">
+                Password
+              </label>
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-[#0f172a] outline-none placeholder:text-slate-400 focus:border-forest-600 focus:ring-2 focus:ring-forest-500/25"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={loginWithEmail}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-forest-700 to-forest-900 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:opacity-70"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin-slow" /> : null}
+              Sign in with email
+            </button>
           </div>
         )}
       </div>

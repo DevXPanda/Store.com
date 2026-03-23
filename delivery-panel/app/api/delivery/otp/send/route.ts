@@ -37,19 +37,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const code = data.value?.devCode;
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
+    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
     const from = process.env.TWILIO_PHONE_NUMBER;
-    const smsSent = Boolean(sid && token && from && code);
+    const code = data.value?.devCode;
+    const hasVerify = Boolean(sid && token && verifyServiceSid);
+    const hasMessaging = Boolean(sid && token && from && code);
+    const smsSent = hasVerify || hasMessaging;
 
     if (smsSent) {
       const client = twilio(sid!, token!);
-      await client.messages.create({
-        to: `+91${digits}`,
-        from: from!,
-        body: `Your VegFru delivery partner code: ${code}. Valid for 5 minutes.`,
-      });
+      if (hasVerify) {
+        await client.verify.v2
+          .services(verifyServiceSid!)
+          .verifications.create({ to: `+91${digits}`, channel: "sms" });
+      } else {
+        await client.messages.create({
+          to: `+91${digits}`,
+          from: from!,
+          body: `Your VegFru delivery partner code: ${code}. Valid for 5 minutes.`,
+        });
+      }
     }
 
     return NextResponse.json({
