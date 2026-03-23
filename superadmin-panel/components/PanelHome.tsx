@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Leaf,
   ArrowRight,
@@ -9,12 +11,81 @@ import {
   Server,
   MapPin,
   Shield,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  Loader2,
+  X,
 } from "lucide-react";
 
 const STORE = process.env.NEXT_PUBLIC_STORE_URL || "http://localhost:3000";
 const ADMIN = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001";
 
 export default function PanelHome() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [openSignIn, setOpenSignIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
+
+  useEffect(() => {
+    const signin = searchParams.get("signin") === "1";
+    if (!signin) {
+      setOpenSignIn(false);
+      return;
+    }
+    try {
+      const s = localStorage.getItem("vegfru_superadmin");
+      if (s) {
+        const user = JSON.parse(s);
+        if (user?.role === "superadmin") {
+          router.replace("/superadmin");
+          return;
+        }
+      }
+    } catch {}
+    setOpenSignIn(true);
+  }, [router, searchParams]);
+
+  const closeModal = () => {
+    setOpenSignIn(false);
+    setAuthError("");
+    setForm({ email: "", password: "" });
+    setShowPw(false);
+    router.replace("/");
+  };
+
+  const handleSignIn = async () => {
+    if (!form.email || !form.password) {
+      setAuthError("Please fill all fields");
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.success && data.user?.role === "superadmin") {
+        const encoded = encodeURIComponent(JSON.stringify(data.user));
+        document.cookie = `sa_token=${data.token};path=/;max-age=${8 * 3600};samesite=strict`;
+        document.cookie = `sa_user=${encoded};path=/;max-age=${8 * 3600};samesite=strict`;
+        localStorage.setItem("vegfru_superadmin", JSON.stringify(data.user));
+        router.push("/superadmin");
+        return;
+      }
+      setAuthError(data.error || "Invalid credentials. Superadmin account required.");
+    } catch {
+      setAuthError("Network error. Please try again.");
+    }
+    setAuthLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#FEFAE0] text-gray-900">
       <div className="bg-forest-800 text-green-100 text-xs py-1.5 text-center font-body tracking-wide">
@@ -50,7 +121,7 @@ export default function PanelHome() {
                 View storefront
               </a>
               <Link
-                href="/superadmin/login"
+                href="/?signin=1"
                 className="inline-flex items-center gap-2 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-lg active:scale-[0.98]"
               >
                 Sign in
@@ -98,7 +169,7 @@ export default function PanelHome() {
 
               <div className="flex flex-wrap gap-4">
                 <Link
-                  href="/superadmin/login"
+                  href="/?signin=1"
                   className="group flex items-center gap-3 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-7 py-4 rounded-2xl transition-all hover:shadow-xl hover:shadow-green-900/25 active:scale-95"
                 >
                   <Lock className="w-4 h-4" />
@@ -168,12 +239,79 @@ export default function PanelHome() {
               Store
             </a>
             <span className="text-gray-300">·</span>
-            <Link href="/superadmin/login" className="hover:text-forest-800">
+            <Link href="/?signin=1" className="hover:text-forest-800">
               Super Admin login
             </Link>
           </div>
         </div>
       </footer>
+
+      {openSignIn && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button
+            type="button"
+            onClick={closeModal}
+            aria-label="Close"
+            className="absolute inset-0 bg-forest-900/40 backdrop-blur-sm"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-green-100 bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-green-100 bg-[#FEFAE0]/90 px-5 py-4">
+              <div className="inline-flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-forest-700 to-green-700 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-forest-900">Super Admin Sign In</p>
+                  <p className="text-[11px] text-gray-600">Use your superadmin credentials</p>
+                </div>
+              </div>
+              <button type="button" onClick={closeModal} className="p-2 rounded-lg text-gray-500 hover:bg-green-50 hover:text-forest-800 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 pt-4 pb-5">
+              {authError && (
+                <div className="mb-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {authError}
+                </div>
+              )}
+              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-wide text-gray-500">Email</label>
+              <input
+                type="email"
+                autoComplete="username"
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="you@example.com"
+                className="mb-3 w-full rounded-xl border border-green-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-green-600/30 focus:border-green-500"
+              />
+              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-wide text-gray-500">Password</label>
+              <div className="relative mb-4">
+                <input
+                  type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={form.password}
+                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-green-200 bg-white px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-green-600/30 focus:border-green-500"
+                />
+                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={authLoading}
+                onClick={handleSignIn}
+                className="w-full rounded-xl bg-forest-700 hover:bg-forest-800 py-2.5 text-sm font-semibold text-white disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+              >
+                {authLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {authLoading ? "Signing in..." : "Sign In"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function VegFruBrandBar({ subtitle, leftExtra, rightExtra }: Props) {
       <div className="bg-forest-800 text-green-100 text-xs py-1.5 text-center font-body tracking-wide">
         <span className="flex items-center justify-center gap-2 flex-wrap px-2">
           <MapPin className="w-3 h-3 shrink-0" />
-          Free delivery above ₹299 · 4–6 hour delivery · Serving Delhi NCR
+          Admin operations · Orders, catalog, users · Serving Delhi NCR
           <Bell className="w-3 h-3 ml-2 shrink-0" />
         </span>
       </div>

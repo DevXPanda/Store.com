@@ -264,7 +264,69 @@ export const requestDeliveryOtp = mutation({
     await ctx.db.insert("deliveryOtps", { phone, code, expiresAt });
 
     // TODO: send SMS via provider; remove devCode in production.
-    return { ok: true as const, expiresInSec: 300, devCode: code };
+    return { ok: true as const, phone, expiresInSec: 300, devCode: code };
+  },
+});
+
+export const requestDeliveryOtpByEmail = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (!user || user.role !== "delivery") {
+      throw new Error("No delivery account found for this email. Apply first, then wait for approval.");
+    }
+    if (!user.phone) throw new Error("No phone linked to this account. Contact support.");
+    if (!user.isActive) throw new Error("Your account is suspended. Contact support.");
+
+    const phone = normalizePhone(user.phone);
+    if (phone.length !== 10) throw new Error("Account phone is invalid. Contact support.");
+
+    const existingOtps = await ctx.db
+      .query("deliveryOtps")
+      .withIndex("by_phone", (q) => q.eq("phone", phone))
+      .collect();
+    for (const row of existingOtps) {
+      await ctx.db.delete(row._id);
+    }
+
+    const code = randomOtp();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    await ctx.db.insert("deliveryOtps", { phone, code, expiresAt });
+    return { ok: true as const, phone, expiresInSec: 300, devCode: code };
+  },
+});
+
+export const requestDeliveryEmailOtpByEmail = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (!user || user.role !== "delivery") {
+      throw new Error("No delivery account found for this email. Apply first, then wait for approval.");
+    }
+    if (!user.isActive) throw new Error("Your account is suspended. Contact support.");
+
+    const existingOtps = await ctx.db
+      .query("deliveryEmailOtps")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+    for (const row of existingOtps) {
+      await ctx.db.delete(row._id);
+    }
+
+    const code = randomOtp();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    await ctx.db.insert("deliveryEmailOtps", { email, code, expiresAt });
+    return { ok: true as const, email, expiresInSec: 300, devCode: code };
   },
 });
 
@@ -305,6 +367,47 @@ export const verifyDeliveryOtp = mutation({
         name: user.name,
         email: user.email,
         phone: user.phone ?? phone,
+        rating: 4.8,
+      },
+    };
+  },
+});
+
+export const verifyDeliveryEmailOtp = mutation({
+  args: { email: v.string(), code: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    if (!email) throw new Error("Invalid email");
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+    if (!user || user.role !== "delivery" || !user.isActive) {
+      throw new Error("Invalid login");
+    }
+
+    const trimmed = args.code.trim();
+    const rows = await ctx.db
+      .query("deliveryEmailOtps")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+    const match = rows.find((r) => r.code === trimmed && r.expiresAt > Date.now());
+    if (!match) {
+      throw new Error("Invalid or expired OTP. Request a new code.");
+    }
+
+    await ctx.db.delete(match._id);
+    for (const r of rows) {
+      if (r._id !== match._id) await ctx.db.delete(r._id);
+    }
+
+    await ctx.db.patch(user._id, { lastLogin: Date.now() });
+    return {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone ?? "",
         rating: 4.8,
       },
     };

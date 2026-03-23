@@ -10,10 +10,9 @@ import {
   Bell, Database, Globe, Lock, Unlock, UserPlus,
   BarChart3, PieChart, DollarSign, Zap, Archive,
   IndianRupee, Mail, Phone, MapPin, Calendar,
-  Key, Terminal, Server, Cpu, HardDrive, Sun, Moon, Menu,
+  Key, Terminal, Server, Cpu, HardDrive, Sun, Moon, Menu, Leaf,
   ClipboardList
 } from "lucide-react";
-import { VegFruBrandBar } from "@/components/VegFruBrandBar";
 
 // ── Types ─────────────────────────────────────────────────────
 type Tab = "dashboard"|"users"|"applications"|"orders"|"products"|"delivery"|"analytics"|"logs";
@@ -171,7 +170,7 @@ export default function SuperAdminPanel(){
   const [tab, setTab]               = useState<Tab>(() => tabFromSearchParams(searchParams));
   const [saUser, setSaUser]         = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Data
@@ -199,6 +198,12 @@ export default function SuperAdminPanel(){
   const [toast, setToast]           = useState<{msg:string;type:"ok"|"err"}>({msg:"",type:"ok"});
   const [notifOpen, setNotifOpen]   = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [showAuthPw, setShowAuthPw] = useState(false);
+  const [authForm, setAuthForm] = useState({ email: "", password: "" });
 
   // Modals
   const [createUserModal, setCreateUserModal] = useState(false);
@@ -263,10 +268,44 @@ export default function SuperAdminPanel(){
     setLoading(false);
   },[]);
 
-  useEffect(()=>{
-    try{const s=localStorage.getItem("vegfru_superadmin");if(s)setSaUser(JSON.parse(s));}catch{}
+  useEffect(() => {
+    const wantsSignIn = searchParams.get("signin") === "1";
+    let nextUser: any = null;
+    try {
+      const s = localStorage.getItem("vegfru_superadmin");
+      if (s) nextUser = JSON.parse(s);
+    } catch {}
+    if (!nextUser && typeof document !== "undefined") {
+      try {
+        const cookieUser = document.cookie
+          .split(";")
+          .map((c) => c.trim())
+          .find((c) => c.startsWith("sa_user="));
+        if (cookieUser) {
+          nextUser = JSON.parse(decodeURIComponent(cookieUser.split("=")[1]));
+        }
+      } catch {}
+    }
+    if (nextUser?.role === "superadmin") {
+      setSaUser(nextUser);
+      setShowSignIn(false);
+    } else {
+      setSaUser(null);
+      setShowSignIn(true);
+      if (wantsSignIn) {
+        router.replace("/superadmin");
+      }
+    }
+    setAuthChecked(true);
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (!saUser) {
+      setLoading(false);
+      return;
+    }
     loadAll();
-  },[loadAll]);
+  }, [loadAll, saUser]);
 
   useEffect(() => {
     try {
@@ -298,9 +337,105 @@ export default function SuperAdminPanel(){
   }, [isDarkMode]);
 
   useEffect(()=>{
+    if (!saUser) return;
     const t=setInterval(loadAll,30000);
     return()=>clearInterval(t);
-  },[loadAll]);
+  },[loadAll, saUser]);
+
+  const handleSuperAdminSignIn = async () => {
+    if (!authForm.email || !authForm.password) {
+      setAuthError("Please fill all fields");
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authForm),
+      });
+      const data = await res.json();
+      if (data.success && data.user?.role === "superadmin") {
+        const encoded = encodeURIComponent(JSON.stringify(data.user));
+        document.cookie = `sa_token=${data.token};path=/;max-age=${8 * 3600};samesite=strict`;
+        document.cookie = `sa_user=${encoded};path=/;max-age=${8 * 3600};samesite=strict`;
+        localStorage.setItem("vegfru_superadmin", JSON.stringify(data.user));
+        setSaUser(data.user);
+        setShowSignIn(false);
+        setAuthForm({ email: "", password: "" });
+        setAuthError("");
+        return;
+      }
+      setAuthError(data.error || "Invalid credentials. Superadmin account required.");
+    } catch {
+      setAuthError("Network error. Please try again.");
+    }
+    setAuthLoading(false);
+  };
+
+  if (!authChecked) {
+    return null;
+  }
+
+  if (!saUser) {
+    return (
+      <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 0%, rgba(88,28,135,0.15) 0%, #060810 60%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans',system-ui,sans-serif", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, opacity: 0.04, backgroundImage: "repeating-linear-gradient(0deg,#a855f7 0,#a855f7 1px,transparent 0,transparent 60px),repeating-linear-gradient(90deg,#a855f7 0,#a855f7 1px,transparent 0,transparent 60px)", pointerEvents: "none" }} />
+        {showSignIn && (
+          <div className="fade-in" style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 460, borderRadius: 18, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(168,85,247,0.24)", backdropFilter: "blur(18px)", boxShadow: "0 20px 60px rgba(0,0,0,0.45)", padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#7c3aed,#9333ea)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ShieldCheck size={20} color="#fff" />
+              </div>
+              <div>
+                <div style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>Super Admin Sign In</div>
+                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Use your superadmin credentials</div>
+              </div>
+            </div>
+
+            {authError && <div style={{ marginBottom: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#fda4af", fontSize: 13, padding: "10px 12px" }}>{authError}</div>}
+
+            <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Email</label>
+            <input
+              type="email"
+              autoComplete="username"
+              value={authForm.email}
+              onChange={(e) => setAuthForm((p) => ({ ...p, email: e.target.value }))}
+              placeholder="you@example.com"
+              style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none", marginBottom: 12 }}
+            />
+
+            <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Password</label>
+            <div style={{ position: "relative", marginBottom: 16 }}>
+              <input
+                type={showAuthPw ? "text" : "password"}
+                autoComplete="current-password"
+                value={authForm.password}
+                onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))}
+                onKeyDown={(e) => e.key === "Enter" && handleSuperAdminSignIn()}
+                placeholder="••••••••"
+                style={{ width: "100%", padding: "12px 44px 12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none" }}
+              />
+              <button type="button" onClick={() => setShowAuthPw((v) => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", display: "flex" }}>
+                {showAuthPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={authLoading}
+              onClick={handleSuperAdminSignIn}
+              style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: authLoading ? "rgba(124,58,237,0.6)" : "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", fontWeight: 600, fontSize: 14, cursor: authLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              {authLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Signing in...</> : <><Lock size={15} />Sign In</>}
+            </button>
+          </div>
+        )}
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} .fade-in{animation:fadeIn 0.25s ease-out}`}</style>
+      </div>
+    );
+  }
 
   // ── Computed stats ──────────────────────────────────────────
   const totalRevenue    = orders.filter(o=>o.status==="delivered").reduce((s:number,o:any)=>s+o.total,0);
@@ -493,50 +628,42 @@ export default function SuperAdminPanel(){
 
   // ── SIDEBAR ─────────────────────────────────────────────────
   const Sidebar = () => (
-    <aside style={{width:isMobile?250:(sidebarOpen?250:68),flexShrink:0,background:"var(--sa-sidebar)",borderRight:"1px solid var(--sa-panel-border)",display:"flex",flexDirection:"column",transition:"transform 0.25s, width 0.25s",overflow:"hidden",position:isMobile?"fixed":"relative",top:isMobile?0:undefined,left:isMobile?0:undefined,height:isMobile?"100vh":undefined,zIndex:isMobile?120:1,transform:isMobile?(sidebarOpen?"translateX(0)":"translateX(-100%)"):"none"}}>
+    <aside style={{width:isMobile?264:(sidebarOpen?264:72),flexShrink:0,background:"var(--sa-sidebar)",borderRight:"1px solid var(--sa-panel-border)",display:"flex",flexDirection:"column",transition:"transform 0.25s, width 0.25s",overflow:"hidden",position:isMobile?"fixed":"relative",top:isMobile?0:undefined,left:isMobile?0:undefined,height:isMobile?"100vh":undefined,zIndex:isMobile?120:1,transform:isMobile?(sidebarOpen?"translateX(0)":"translateX(-100%)"):"none"}}>
       {/* Purple accent line */}
       <div style={{position:"absolute",top:0,left:0,width:"100%",height:2,background:"linear-gradient(90deg,#14532d,#166534,#16a34a)"}}/>
 
-      {/* Logo */}
-      <div style={{padding:"22px 16px 16px",borderBottom:"1px solid rgba(22,163,74,0.14)",display:"flex",alignItems:"center",gap:10,height:70}}>
-        <div style={{width:36,height:36,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 4px 16px rgba(20,83,45,0.4)"}}>
-          <ShieldCheck size={18} color="#fff"/>
-        </div>
-        {sidebarOpen&&<div>
-          <div style={{fontSize:15,fontWeight:700,color:"var(--sa-text)",letterSpacing:"-0.3px"}}>Veg<span style={{color:"#4ade80"}}>Fru</span></div>
-          <div style={{fontSize:9,color:"#22c55e",letterSpacing:3,textTransform:"uppercase",fontFamily:"monospace"}}>Super Admin</div>
-        </div>}
-      </div>
+      {/* Top spacing (brand is in navbar only) */}
+      <div style={{height:12,borderBottom:"1px solid rgba(22,163,74,0.14)"}} />
 
       {/* Nav */}
-      <nav style={{flex:1,padding:"10px 8px",display:"flex",flexDirection:"column",gap:2,overflowY:"auto"}}>
+      <nav style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:6,overflowY:"auto"}}>
         {NAV.map(({id,label,icon:Icon})=>{
           const active=tab===id;
           return(
             <button key={id} onClick={()=>{setTab(id as Tab); if(isMobile) setSidebarOpen(false);}}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"10px 10px",borderRadius:10,border:"none",cursor:"pointer",width:"100%",textAlign:"left",fontSize:13,fontWeight:active?600:400,transition:"all 0.15s",background:active?"linear-gradient(135deg,#14532d,#166534)":"transparent",color:active?"#fff":"var(--sa-muted)",boxShadow:active?"0 2px 12px rgba(20,83,45,0.4)":"none"}}
+              style={{display:"flex",alignItems:"center",gap:12,padding:sidebarOpen?"11px 12px":"11px 10px",borderRadius:12,border:"none",cursor:"pointer",width:"100%",textAlign:"left",fontSize:14,fontWeight:active?600:500,transition:"all 0.15s",background:active?"linear-gradient(135deg,#14532d,#166534)":"transparent",color:active?"#fff":"var(--sa-muted)",boxShadow:active?"0 4px 14px rgba(20,83,45,0.35)":"none"}}
               title={!sidebarOpen?label:undefined}>
-              <Icon size={16} style={{flexShrink:0}}/>
-              {sidebarOpen&&<span style={{flex:1}}>{label}</span>}
-              {sidebarOpen&&id==="users"&&users.length>0&&<span style={{background:"rgba(34,197,94,0.2)",color:"#22c55e",fontSize:10,padding:"1px 6px",borderRadius:10}}>{users.length}</span>}
-              {sidebarOpen&&id==="applications"&&(partnerApplications.length+deliveryPartnerApplications.length)>0&&<span style={{background:"rgba(96,165,250,0.2)",color:"#60a5fa",fontSize:10,padding:"1px 6px",borderRadius:10}}>{partnerApplications.length+deliveryPartnerApplications.length}</span>}
-              {sidebarOpen&&id==="orders"&&pendingOrders.length>0&&<span style={{background:"rgba(251,191,36,0.2)",color:"#fbbf24",fontSize:10,padding:"1px 6px",borderRadius:10}}>{pendingOrders.length}</span>}
+              <Icon size={17} style={{flexShrink:0}}/>
+              {sidebarOpen&&<span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}
+              {sidebarOpen&&id==="users"&&users.length>0&&<span style={{background:"rgba(34,197,94,0.2)",color:"#16a34a",fontSize:10,padding:"2px 7px",borderRadius:999,fontFamily:"monospace"}}>{users.length}</span>}
+              {sidebarOpen&&id==="applications"&&(partnerApplications.length+deliveryPartnerApplications.length)>0&&<span style={{background:"rgba(96,165,250,0.2)",color:"#2563eb",fontSize:10,padding:"2px 7px",borderRadius:999,fontFamily:"monospace"}}>{partnerApplications.length+deliveryPartnerApplications.length}</span>}
+              {sidebarOpen&&id==="orders"&&pendingOrders.length>0&&<span style={{background:"rgba(251,191,36,0.2)",color:"#b45309",fontSize:10,padding:"2px 7px",borderRadius:999,fontFamily:"monospace"}}>{pendingOrders.length}</span>}
             </button>
           );
         })}
       </nav>
 
       {/* Bottom */}
-      <div style={{padding:"10px 8px",borderTop:"1px solid rgba(22,163,74,0.14)"}}>
-        {sidebarOpen&&<div style={{background:"rgba(34,197,94,0.06)",borderRadius:10,padding:"10px 12px",marginBottom:8,border:"1px solid rgba(34,197,94,0.1)"}}>
-          <div style={{fontSize:11,fontWeight:600,color:"#22c55e"}}>{saUser?.name||"Super Admin"}</div>
-          <div style={{fontSize:10,color:"var(--sa-muted)"}}>{saUser?.email||"superadmin@vegfru.com"}</div>
+      <div style={{padding:"12px 10px",borderTop:"1px solid rgba(22,163,74,0.14)"}}>
+        {sidebarOpen&&<div style={{background:"rgba(34,197,94,0.06)",borderRadius:12,padding:"11px 12px",marginBottom:10,border:"1px solid rgba(34,197,94,0.1)"}}>
+          <div style={{fontSize:12,fontWeight:600,color:"#15803d"}}>{saUser?.name||"Super Admin"}</div>
+          <div style={{fontSize:10,color:"var(--sa-muted)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{saUser?.email||"superadmin@vegfru.com"}</div>
         </div>}
         <button onClick={()=>{document.cookie="sa_token=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";document.cookie="sa_user=;expires=Thu,01 Jan 1970 00:00:00 GMT;path=/";localStorage.removeItem("vegfru_superadmin");window.location.href="/";}}
-          style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:10,background:"transparent",color:"var(--sa-muted)",border:"none",cursor:"pointer",width:"100%",fontSize:13,transition:"all 0.15s"}}
+          style={{display:"flex",alignItems:"center",gap:12,padding:sidebarOpen?"10px 12px":"10px 10px",borderRadius:12,background:"transparent",color:"var(--sa-muted)",border:"none",cursor:"pointer",width:"100%",fontSize:14,fontWeight:500,transition:"all 0.15s"}}
           onMouseEnter={e=>{(e.currentTarget as any).style.background="rgba(239,68,68,0.1)";(e.currentTarget as any).style.color="#f87171"}}
           onMouseLeave={e=>{(e.currentTarget as any).style.background="transparent";(e.currentTarget as any).style.color="var(--sa-muted)"}}>
-          <LogOut size={16} style={{flexShrink:0}}/>{sidebarOpen&&"Sign Out"}
+          <LogOut size={17} style={{flexShrink:0}}/>{sidebarOpen&&"Sign Out"}
         </button>
       </div>
     </aside>
@@ -1382,37 +1509,59 @@ export default function SuperAdminPanel(){
     logs:      <LogsTab/>,
   };
 
+  const topBtnStyle: React.CSSProperties = {
+    background: "var(--sa-ghost-bg)",
+    border: "1px solid var(--sa-ghost-border)",
+    borderRadius: 8,
+    color: "var(--sa-text)",
+    cursor: "pointer",
+    padding: "6px 10px",
+    display: "flex",
+    alignItems: "center",
+  };
+
   const saBrandLeft = (
-    <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,overflow:"hidden"}}>
-      <button type="button" onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"rgba(22,101,52,0.08)",border:"1px solid rgba(22,101,52,0.2)",color:"#166534",cursor:"pointer",padding:6,borderRadius:8,display:"flex"}}>
+    <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,overflow:"hidden",flex:isMobile?"0 0 auto":1}}>
+      <button type="button" onClick={() => { setNotifOpen(false); setProfileOpen(false); setSidebarOpen(!sidebarOpen); }} style={topBtnStyle}>
         {isMobile ? <Menu size={18}/> : <LayoutDashboard size={18}/>}
       </button>
       <div style={{minWidth:0}}>
-        <h1 style={{fontSize:16,fontWeight:600,color:"#14532d",margin:0}}>{NAV.find(n=>n.id===tab)?.label}</h1>
-        {!isMobile && <div style={{fontSize:10,color:"#64748b",fontFamily:"monospace"}}>{new Date().toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>}
+        {!isMobile && <h1 style={{fontSize:16,fontWeight:600,color:"var(--sa-text)",margin:0}}>{NAV.find(n=>n.id===tab)?.label}</h1>}
+        {!isMobile && <div style={{fontSize:10,color:"var(--sa-muted)",fontFamily:"monospace"}}>{new Date().toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>}
       </div>
     </div>
   );
 
   const saBrandRight = (
     <>
-      <button type="button" onClick={toggleTheme} title={isDarkMode?"Light mode":"Dark mode"} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#166534",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center"}}>
+      <button type="button" onClick={toggleTheme} title={isDarkMode?"Light mode":"Dark mode"} style={topBtnStyle}>
         {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
       </button>
-      <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.25)",borderRadius:20,padding:"4px 10px"}}>
+      {!isMobile && <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(34,197,94,0.12)",border:"1px solid rgba(34,197,94,0.25)",borderRadius:20,padding:"4px 10px"}}>
         <div style={{width:6,height:6,borderRadius:"50%",background:"#16a34a",boxShadow:"0 0 8px #16a34a"}}/>
         <span style={{fontSize:10,color:"#15803d",fontFamily:"monospace",letterSpacing:1,fontWeight:600}}>LIVE</span>
-      </div>
-      <button type="button" onClick={loadAll} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 10px",display:"flex",alignItems:"center",gap:6,fontSize:12}}>
+      </div>}
+      <button type="button" onClick={loadAll} style={{...topBtnStyle,gap:6,fontSize:12}}>
         <RefreshCw size={13} style={{animation:loading?"spin 1s linear infinite":"none"}}/>
       </button>
       <div style={{position:"relative"}}>
-        <button type="button" onClick={()=>setNotifOpen(!notifOpen)} style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 10px",display:"flex",position:"relative"}}>
+        <button type="button" onClick={()=>setNotifOpen(!notifOpen)} style={{...topBtnStyle,position:"relative"}}>
           <Bell size={15}/>
           {pendingOrders.length>0&&<span style={{position:"absolute",top:-3,right:-3,width:14,height:14,background:"#ef4444",borderRadius:"50%",fontSize:8,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{pendingOrders.length}</span>}
         </button>
         {notifOpen&&(
-          <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:300,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:14,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
+          <div style={{
+            position:isMobile?"fixed":"absolute",
+            right:isMobile?10:0,
+            top:isMobile?88:"calc(100% + 8px)",
+            width:isMobile?"calc(100vw - 20px)":300,
+            background:"var(--sa-modal-bg)",
+            border:"1px solid var(--sa-modal-border)",
+            borderRadius:14,
+            overflow:"hidden",
+            zIndex:180,
+            boxShadow:"var(--sa-modal-shadow)"
+          }}>
             <div style={{padding:"12px 16px",borderBottom:"1px solid var(--sa-card-border)",fontSize:13,fontWeight:600,color:"var(--sa-text)",display:"flex",justifyContent:"space-between"}}>
               Notifications <span style={{fontSize:11,color:"#22c55e"}}>{pendingOrders.length} pending</span>
             </div>
@@ -1434,28 +1583,57 @@ export default function SuperAdminPanel(){
         )}
       </div>
       {!isMobile && <a href={process.env.NEXT_PUBLIC_ADMIN_URL||"http://localhost:3001"} target="_blank" rel="noreferrer"
-        style={{background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:8,color:"#334155",cursor:"pointer",padding:"6px 12px",fontSize:12,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>
+        style={{...topBtnStyle,padding:"6px 12px",fontSize:12,textDecoration:"none",gap:6}}>
         <Globe size={13}/>Admin
       </a>}
       <div style={{position:"relative"}}>
-        <button type="button" onClick={()=>setProfileOpen(!profileOpen)}
-          style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.65)",border:"1px solid rgba(22,101,52,0.2)",borderRadius:10,padding:"6px 10px",cursor:"pointer"}}>
+        <button type="button" onClick={()=>{ setNotifOpen(false); setProfileOpen(!profileOpen); }}
+          style={{display:"flex",alignItems:"center",gap:8,background:"var(--sa-ghost-bg)",border:"1px solid var(--sa-ghost-border)",borderRadius:10,padding:"6px 10px",cursor:"pointer"}}>
           <div style={{width:26,height:26,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>
             {(saUser?.name||"S").charAt(0)}
           </div>
           {!isMobile && <div style={{textAlign:"left"}}>
-            <div style={{fontSize:11,fontWeight:600,color:"#14532d"}}>{saUser?.name||"Super Admin"}</div>
-            <div style={{fontSize:9,color:"#15803d"}}>superadmin</div>
+            <div style={{fontSize:11,fontWeight:600,color:"var(--sa-text)"}}>{saUser?.name||"Super Admin"}</div>
+            <div style={{fontSize:9,color:"var(--sa-muted)"}}>superadmin</div>
           </div>}
-          <ChevronDown size={11} style={{color:"#64748b"}}/>
+          <ChevronDown size={11} style={{color:"var(--sa-muted)"}}/>
         </button>
         {profileOpen&&(
-          <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:200,background:"var(--sa-modal-bg)",border:"1px solid var(--sa-modal-border)",borderRadius:12,overflow:"hidden",zIndex:50,boxShadow:"var(--sa-modal-shadow)"}}>
-            <div style={{padding:"12px 14px",borderBottom:"1px solid var(--sa-card-border)"}}>
-              <div style={{fontSize:13,color:"var(--sa-text)",fontWeight:600}}>{saUser?.name}</div>
-              <div style={{fontSize:11,color:"var(--sa-muted)"}}>{saUser?.email}</div>
-              <Badge role="superadmin"/>
+          <div style={{
+            position:isMobile?"fixed":"absolute",
+            right:isMobile?10:0,
+            top:isMobile?88:"calc(100% + 8px)",
+            width:isMobile?220:248,
+            background:"var(--sa-modal-bg)",
+            border:"1px solid var(--sa-modal-border)",
+            borderRadius:12,
+            overflow:"hidden",
+            zIndex:190,
+            boxShadow:"var(--sa-modal-shadow)"
+          }}>
+            <div style={{padding:isMobile?"12px 14px":"14px 16px",borderBottom:"1px solid var(--sa-card-border)"}}>
+              <div style={{fontSize:13,color:"var(--sa-text)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{saUser?.name||"Super Admin"}</div>
+              <div style={{fontSize:11,color:"var(--sa-muted)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{saUser?.email||"superadmin@vegfru.com"}</div>
+              <div style={{marginTop:8,display:"inline-flex"}}>
+                <Badge role="superadmin"/>
+              </div>
             </div>
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={()=>setProfileOpen(false)}
+                style={{width:"100%",textAlign:"left",padding:"10px 16px",background:"transparent",border:"none",color:"var(--sa-text)",fontSize:12,cursor:"pointer"}}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--sa-row-hover)"}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}
+              >
+                Close menu
+              </button>
+            )}
+            {isMobile && (
+              <button type="button" onClick={()=>setProfileOpen(false)} style={{width:"100%",textAlign:"left",padding:"10px 14px",background:"transparent",border:"none",borderTop:"1px solid var(--sa-card-border)",color:"var(--sa-text)",fontSize:12,cursor:"pointer"}}>
+                Close
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1464,25 +1642,25 @@ export default function SuperAdminPanel(){
 
   // ── Theme tokens (light + dark readable contrast) ────────────
   const saTheme: React.CSSProperties = {
-    ["--sa-bg" as any]: isDarkMode ? "#060810" : "#f1f5f9",
-    ["--sa-sidebar" as any]: isDarkMode ? "#0d1117" : "#ffffff",
-    ["--sa-topbar" as any]: isDarkMode ? "rgba(6,8,16,0.96)" : "#ffffff",
-    ["--sa-panel-border" as any]: isDarkMode ? "rgba(22,163,74,0.2)" : "rgba(15,23,42,0.12)",
+    ["--sa-bg" as any]: isDarkMode ? "#060810" : "#FEFAE0",
+    ["--sa-sidebar" as any]: isDarkMode ? "#0d1117" : "#fffef4",
+    ["--sa-topbar" as any]: isDarkMode ? "#0d1117" : "#FEFAE0",
+    ["--sa-panel-border" as any]: isDarkMode ? "rgba(22,163,74,0.2)" : "rgba(22,101,52,0.12)",
     ["--sa-text" as any]: isDarkMode ? "#f1f5f9" : "#0f172a",
     ["--sa-muted" as any]: isDarkMode ? "#94a3b8" : "#475569",
     ["--sa-card-bg" as any]: isDarkMode ? "rgba(255,255,255,0.04)" : "#ffffff",
-    ["--sa-card-border" as any]: isDarkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
-    ["--sa-surface" as any]: isDarkMode ? "rgba(255,255,255,0.06)" : "#f8fafc",
+    ["--sa-card-border" as any]: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(22,101,52,0.12)",
+    ["--sa-surface" as any]: isDarkMode ? "rgba(255,255,255,0.06)" : "#f8faf2",
     ["--sa-input-bg" as any]: isDarkMode ? "rgba(255,255,255,0.06)" : "#ffffff",
     ["--sa-input-border" as any]: isDarkMode ? "rgba(255,255,255,0.14)" : "#cbd5e1",
     ["--sa-input-text" as any]: isDarkMode ? "#f1f5f9" : "#0f172a",
     ["--sa-modal-bg" as any]: isDarkMode ? "#0d1117" : "#ffffff",
-    ["--sa-modal-border" as any]: isDarkMode ? "rgba(34,197,94,0.25)" : "rgba(15,23,42,0.12)",
+    ["--sa-modal-border" as any]: isDarkMode ? "rgba(34,197,94,0.25)" : "rgba(22,101,52,0.16)",
     ["--sa-modal-shadow" as any]: isDarkMode ? "0 25px 80px rgba(0,0,0,0.75)" : "0 25px 60px rgba(15,23,42,0.12)",
     ["--sa-overlay" as any]: isDarkMode ? "rgba(0,0,0,0.82)" : "rgba(15,23,42,0.45)",
-    ["--sa-row-hover" as any]: isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(15,23,42,0.05)",
-    ["--sa-ghost-bg" as any]: isDarkMode ? "rgba(255,255,255,0.06)" : "#f1f5f9",
-    ["--sa-ghost-border" as any]: isDarkMode ? "rgba(255,255,255,0.12)" : "#e2e8f0",
+    ["--sa-row-hover" as any]: isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(22,101,52,0.05)",
+    ["--sa-ghost-bg" as any]: isDarkMode ? "rgba(255,255,255,0.06)" : "rgba(22,101,52,0.08)",
+    ["--sa-ghost-border" as any]: isDarkMode ? "rgba(255,255,255,0.12)" : "rgba(22,101,52,0.2)",
     ["--sa-track" as any]: isDarkMode ? "rgba(255,255,255,0.1)" : "#e2e8f0",
     ["--sa-subtle" as any]: isDarkMode ? "rgba(255,255,255,0.65)" : "#64748b",
   };
@@ -1504,7 +1682,59 @@ export default function SuperAdminPanel(){
     >
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} .fade-in{animation:fadeIn 0.25s ease-out} *{box-sizing:border-box}`}</style>
 
-      <VegFruBrandBar subtitle="Super Admin · Farm Fresh" leftExtra={saBrandLeft} rightExtra={saBrandRight} />
+      <div style={{flexShrink:0,zIndex:60,borderBottom:"1px solid var(--sa-panel-border)",background:"var(--sa-topbar)"}}>
+        <div style={{background:isDarkMode ? "#14532d" : "#166534",color:"#dcfce7",fontSize:11,padding:"4px 12px",textAlign:"center",fontFamily:"monospace",letterSpacing:0.4}}>
+          Super Admin Control Center
+        </div>
+        <div style={{width:"100%",padding:isMobile?"8px 10px":"10px 8px"}}>
+          {isMobile ? (
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+                <div style={{width:36,height:36,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:isDarkMode?"0 4px 16px rgba(20,83,45,0.4)":"0 4px 14px rgba(22,101,52,0.22)"}}>
+                  <Leaf size={18} color="#dcfce7" />
+                </div>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:"var(--sa-text)",letterSpacing:"-0.3px"}}>Veg<span style={{color:"#16a34a"}}>Fru</span></div>
+                  <div style={{fontSize:9,color:"var(--sa-muted)",fontFamily:"monospace",letterSpacing:2,textTransform:"uppercase"}}>Super Admin</div>
+                </div>
+              </div>
+              <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflowX:"auto",padding:"0 4px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,whiteSpace:"nowrap"}}>{saBrandRight}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",flexShrink:0}}>
+                {saBrandLeft}
+              </div>
+            </div>
+          ) : (
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+                <div style={{width:36,height:36,background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:isDarkMode?"0 4px 16px rgba(20,83,45,0.4)":"0 4px 14px rgba(22,101,52,0.22)"}}>
+                  <Leaf size={18} color="#dcfce7" />
+                </div>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700,color:"var(--sa-text)",letterSpacing:"-0.3px"}}>Veg<span style={{color:"#16a34a"}}>Fru</span></div>
+                  <div style={{fontSize:9,color:"var(--sa-muted)",fontFamily:"monospace",letterSpacing:2,textTransform:"uppercase"}}>Super Admin</div>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,flex:1}}>
+                {saBrandLeft}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"flex-end",flexShrink:0}}>
+                {saBrandRight}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isMobile && (profileOpen || notifOpen) && (
+        <button
+          type="button"
+          onClick={() => { setProfileOpen(false); setNotifOpen(false); }}
+          aria-label="Close popovers"
+          style={{ position:"fixed", inset:0, background:"transparent", border:"none", zIndex:170, cursor:"default" }}
+        />
+      )}
 
       <div style={{display:"flex",flex:1,minHeight:0,overflow:"hidden"}}>
       <Sidebar/>

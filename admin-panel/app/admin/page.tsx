@@ -152,6 +152,7 @@ export default function AdminDashboard() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [newProd, setNewProd] = useState({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "" });
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", phone: "", role: "admin" });
@@ -205,6 +206,17 @@ export default function AdminDashboard() {
     document.documentElement.setAttribute("data-admin-theme", isDarkMode ? "dark" : "light");
     document.documentElement.style.colorScheme = isDarkMode ? "dark" : "light";
   }, [isDarkMode]);
+
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const toggleTheme = () => {
     setIsDarkMode((prev) => {
@@ -411,11 +423,18 @@ export default function AdminDashboard() {
   // ── Sidebar ──────────────────────────────────────────────────
   const Sidebar = () => (
     <aside style={{
-      width: sidebarOpen ? 240 : 68, flexShrink: 0,
+      width: isMobile ? 264 : (sidebarOpen ? 240 : 68), flexShrink: 0,
       background: "linear-gradient(180deg,var(--adm-sidebar,#0d1117) 0%,var(--adm-sidebar2,#0f172a) 100%)",
       borderRight: "1px solid var(--adm-border,rgba(255,255,255,0.06))",
       display: "flex", flexDirection: "column",
-      transition: "width 0.25s ease", overflow: "hidden", position: "relative"
+      transition: "transform 0.25s ease, width 0.25s ease",
+      overflow: "hidden",
+      position: isMobile ? "fixed" : "relative",
+      top: isMobile ? 0 : undefined,
+      left: isMobile ? 0 : undefined,
+      height: isMobile ? "100vh" : undefined,
+      zIndex: isMobile ? 130 : 1,
+      transform: isMobile ? (sidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none"
     }}>
       {/* Logo */}
       <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--adm-border,rgba(255,255,255,0.06))", display: "flex", alignItems: "center", gap: 10, height: 72 }}>
@@ -433,7 +452,7 @@ export default function AdminDashboard() {
         {NAV.filter(n => !n.superOnly || isSuperAdmin).map(({ id, label, icon: Icon, superOnly }) => {
           const active = tab === id;
           return (
-            <button key={id} onClick={() => setTab(id)}
+            <button key={id} onClick={() => { setTab(id); if (isMobile) setSidebarOpen(false); }}
               style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "10px 10px",
                 borderRadius: 10, border: "none", cursor: "pointer", width: "100%", textAlign: "left",
@@ -1043,7 +1062,7 @@ export default function AdminDashboard() {
 
   const brandLeft = (
     <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, overflow: "hidden" }}>
-      <button type="button" onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "rgba(22,101,52,0.08)", border: "1px solid rgba(22,101,52,0.2)", color: "#166534", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex", flexShrink: 0 }}>
+      <button type="button" onClick={() => { setNotifOpen(false); setProfileOpen(false); setSidebarOpen(!sidebarOpen); }} style={{ background: "rgba(22,101,52,0.08)", border: "1px solid rgba(22,101,52,0.2)", color: "#166534", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex", flexShrink: 0 }}>
         <Menu size={18} />
       </button>
       <div style={{ minWidth: 0 }}>
@@ -1067,12 +1086,25 @@ export default function AdminDashboard() {
         <span className="hidden sm:inline">Refresh</span>
       </button>
       <div style={{ position: "relative" }}>
-        <button type="button" onClick={() => setNotifOpen(!notifOpen)} style={{ background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 8, color: "#334155", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", position: "relative" }}>
+        <button type="button" onClick={() => { setProfileOpen(false); setNotifOpen(!notifOpen); }} style={{ background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 8, color: "#334155", cursor: "pointer", padding: "6px 10px", display: "flex", alignItems: "center", position: "relative" }}>
           <Bell size={15} />
           {pendingOrders.length > 0 && <span style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", fontSize: 9, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{pendingOrders.length}</span>}
         </button>
         {notifOpen && (
-          <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 300, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+          <div style={{
+            position: isMobile ? "fixed" : "absolute",
+            right: isMobile ? 10 : 0,
+            top: isMobile ? 90 : "100%",
+            marginTop: isMobile ? 0 : 8,
+            width: isMobile ? "calc(100vw - 20px)" : 300,
+            maxWidth: 320,
+            background: "#1a1d27",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 14,
+            overflow: "hidden",
+            zIndex: 180,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+          }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>Notifications</div>
             {pendingOrders.length === 0
               ? <div style={{ padding: 20, textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>All caught up!</div>
@@ -1092,7 +1124,7 @@ export default function AdminDashboard() {
         )}
       </div>
       <div style={{ position: "relative" }}>
-        <button type="button" onClick={() => setProfileOpen(!profileOpen)} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
+        <button type="button" onClick={() => { setNotifOpen(false); setProfileOpen(!profileOpen); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.65)", border: "1px solid rgba(22,101,52,0.2)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}>
           <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#15803d,#166534)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff" }}>
             {(adminUser?.name || "A").charAt(0).toUpperCase()}
           </div>
@@ -1103,7 +1135,19 @@ export default function AdminDashboard() {
           <ChevronDown size={12} style={{ color: "#64748b" }} />
         </button>
         {profileOpen && (
-          <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 8, width: 200, background: "#1a1d27", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", zIndex: 50, boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+          <div style={{
+            position: isMobile ? "fixed" : "absolute",
+            right: isMobile ? 10 : 0,
+            top: isMobile ? 90 : "100%",
+            marginTop: isMobile ? 0 : 8,
+            width: isMobile ? 220 : 248,
+            background: "#1a1d27",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12,
+            overflow: "hidden",
+            zIndex: 190,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+          }}>
             <div style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div style={{ fontSize: 13, color: "#f1f5f9", fontWeight: 500 }}>{adminUser?.name}</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{adminUser?.email}</div>
@@ -1133,9 +1177,11 @@ export default function AdminDashboard() {
       />
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <Sidebar />
+      {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 120 }} />}
+      {isMobile && (profileOpen || notifOpen) && <button type="button" onClick={() => { setProfileOpen(false); setNotifOpen(false); }} aria-label="Close popovers" style={{ position: "fixed", inset: 0, background: "transparent", border: "none", zIndex: 170 }} />}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <main style={{ flex: 1, overflow: "auto", padding: 24 }}>
+        <main style={{ flex: 1, overflow: "auto", padding: isMobile ? 12 : 24 }}>
           {TABS[tab] || <Dashboard />}
         </main>
       </div>

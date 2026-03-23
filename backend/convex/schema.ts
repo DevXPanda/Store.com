@@ -111,6 +111,12 @@ export default defineSchema({
     expiresAt: v.number(),
   }).index("by_phone", ["phone"]),
 
+  deliveryEmailOtps: defineTable({
+    email: v.string(),
+    code: v.string(),
+    expiresAt: v.number(),
+  }).index("by_email", ["email"]),
+
   /** Pending storefront sign-ups — verified by email OTP before user row is created. */
   registrationOtps: defineTable({
     email: v.string(),

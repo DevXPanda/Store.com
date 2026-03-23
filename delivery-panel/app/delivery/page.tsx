@@ -521,63 +521,59 @@ export default function DeliveryApp() {
     { id: "active" as const, label: "Active", icon: Truck },
     { id: "history" as const, label: "History", icon: History },
     { id: "stats" as const, label: "Stats", icon: BarChart3 },
-    { id: "profile" as const, label: "Profile", icon: User },
   ];
 
+  const brandRightExtra = (
+    <>
+      <ThemeToggle variant="header" />
+      <button
+        type="button"
+        onClick={fetchOrders}
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50 text-forest-700 transition hover:bg-green-100"
+        aria-label="Refresh orders"
+        title="Refresh"
+      >
+        <RefreshCw size={14} className={loading ? "animate-spin-slow" : ""} />
+      </button>
+      <div className="flex items-center gap-1.5 rounded-full border border-green-300/60 bg-green-100 px-2.5 py-1 text-[11px] font-semibold text-green-800">
+        <div
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            online ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)]" : "bg-gray-400"
+          )}
+        />
+        <span>{online ? "ONLINE" : "OFFLINE"}</span>
+        {active.length > 0 && (
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {active.length}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setTab("profile")}
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-lg border transition",
+          tab === "profile"
+            ? "border-forest-300/60 bg-forest-500/15 text-forest-700"
+            : "border-green-200 bg-green-50 text-forest-700 hover:bg-green-100"
+        )}
+        aria-label="Open profile"
+        title="Profile"
+      >
+        <User size={14} />
+      </button>
+    </>
+  );
+
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col font-body md:max-w-2xl">
-      <VegFruBrandBar subtitle="Delivery · Farm Fresh" />
+    <div className="mx-auto flex min-h-screen w-full flex-col font-body">
+      <VegFruBrandBar
+        subtitle="Delivery · Farm Fresh"
+        rightExtra={brandRightExtra}
+      />
       <div className="sticky top-0 z-40 border-b border-white/10 bg-app-header text-header-foreground shadow-md">
-        <div className="flex h-12 items-center justify-between gap-3 px-4 md:h-14 md:px-6">
-          <div className="min-w-0 text-[13px] font-semibold text-header-foreground/95">
-            Delivery dashboard
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle variant="header" />
-            <button
-              type="button"
-              onClick={fetchOrders}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-header-foreground/80 transition hover:bg-white/20"
-              aria-label="Refresh orders"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin-slow" : ""} />
-            </button>
-            <div className="flex items-center gap-1.5 rounded-full border border-forest-400/30 bg-black/10 px-2.5 py-1 text-[11px] font-semibold dark:border-white/10">
-              <div
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  online ? "bg-forest-300 shadow-[0_0_8px_rgba(134,239,172,0.9)]" : "bg-white/30"
-                )}
-              />
-              <span className={online ? "text-forest-100" : "text-header-muted"}>
-                {online ? "ONLINE" : "OFFLINE"}
-              </span>
-              {active.length > 0 && (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                  {active.length}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-1 px-4 pb-3 md:px-6">
-          {[
-            { label: "Active", val: active.length, color: "text-amber-400 dark:text-amber-400" },
-            { label: "Today", val: todayDel.length, color: "text-forest-200 dark:text-forest-300" },
-            { label: "Earned", val: `₹${earnings}`, color: "text-forest-200 dark:text-forest-300" },
-          ].map(({ label, val, color }) => (
-            <div
-              key={label}
-              className="rounded-lg bg-black/15 px-2 py-2.5 text-center backdrop-blur-sm dark:bg-white/10"
-            >
-              <div className={cn("text-lg font-bold tabular-nums", color)}>{val}</div>
-              <div className="mt-0.5 text-[10px] text-header-muted">{label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex border-t border-white/10 bg-black/5 dark:bg-black/20">
+        <div className="flex border-b border-white/10 bg-black/5 dark:bg-black/20">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -593,6 +589,29 @@ export default function DeliveryApp() {
               <Icon size={16} strokeWidth={tab === id ? 2.25 : 1.75} />
               {label}
             </button>
+          ))}
+        </div>
+
+        <div className="flex h-12 items-center justify-between gap-3 px-4 md:h-14 md:px-6">
+          <div className="min-w-0 text-[13px] font-semibold text-header-foreground/95">
+            Delivery dashboard
+          </div>
+          <div className="text-[11px] text-header-muted">{active.length} active deliveries</div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1 px-4 pb-3 md:px-6">
+          {[
+            { label: "Active", val: active.length, color: "text-amber-400 dark:text-amber-400" },
+            { label: "Today", val: todayDel.length, color: "text-forest-200 dark:text-forest-300" },
+            { label: "Earned", val: `₹${earnings}`, color: "text-forest-200 dark:text-forest-300" },
+          ].map(({ label, val, color }) => (
+            <div
+              key={label}
+              className="rounded-lg bg-black/15 px-2 py-2.5 text-center backdrop-blur-sm dark:bg-white/10"
+            >
+              <div className={cn("text-lg font-bold tabular-nums", color)}>{val}</div>
+              <div className="mt-0.5 text-[10px] text-header-muted">{label}</div>
+            </div>
           ))}
         </div>
       </div>
