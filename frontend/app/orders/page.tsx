@@ -32,7 +32,7 @@ function timeAgo(ts: number) {
 
 export default function OrdersPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [cartCount, setCartCount] = useState(0)
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,6 +95,18 @@ export default function OrdersPage() {
     } catch (err: any) { alert(err.message || 'Could not cancel order') }
     setCancelling(null)
   }
+
+  if (authLoading) return (
+    <>
+      <Navbar cartCount={cartCount} onCartClick={() => router.push('/')} />
+      <div style={{ minHeight:'100vh', background:'#FEFAE0', display:'flex', alignItems:'center', justifyContent:'center', padding:24, paddingTop:120 }}>
+        <div style={{ background:'white', borderRadius:20, padding:32, maxWidth:380, textAlign:'center', border:'1px solid #e5e7eb', color:'#6b7280', fontSize:14 }}>
+          Loading your orders...
+        </div>
+      </div>
+      <Footer />
+    </>
+  )
 
   if (!user) return (
     <>

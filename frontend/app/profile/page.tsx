@@ -62,7 +62,7 @@ function ProfileField({
 }
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
   const router = useRouter()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [saving, setSaving] = useState(false)
@@ -73,6 +73,7 @@ export default function ProfilePage() {
   const [orderCount, setOrderCount] = useState<number | null>(null)
 
   useEffect(() => {
+    if (loading) return
     if (!user) { router.replace('/'); return }
     setForm(f => ({ ...f, name: user.name || '', }))
     // Fetch user order count
@@ -87,7 +88,7 @@ export default function ProfilePage() {
         }
       }).catch(() => {})
     }
-  }, [user, router])
+  }, [user, router, loading])
 
   useEffect(() => {
     try {
@@ -96,6 +97,7 @@ export default function ProfilePage() {
     } catch {}
   }, [])
 
+  if (loading) return null
   if (!user) return null
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0)

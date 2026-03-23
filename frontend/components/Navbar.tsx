@@ -77,6 +77,10 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
     router.push(`/product/${encodeURIComponent(productId)}`)
     setSearchOpen(false); setSearchQuery(''); setSearchResults([])
   }
+  const hardNavigate = (path: string) => {
+    if (typeof window === 'undefined') return
+    window.location.assign(path)
+  }
 
   const openModal = (register = false) => {
     setIsRegister(register); setError(''); setSuccess('')
@@ -180,7 +184,14 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
     }
   }
 
-  const initials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'
+  const displayName = (user?.name || user?.email?.split('@')[0] || 'Account').trim()
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?'
 
   return (
     <>
@@ -274,21 +285,21 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
                   <button onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center gap-2 bg-green-50 hover:bg-green-100 border border-green-200 text-forest-800 text-sm font-medium px-3 py-2 rounded-xl transition-all">
                     <div className="w-6 h-6 rounded-lg bg-forest-700 text-white text-[10px] font-bold flex items-center justify-center">{initials}</div>
-                    <span className="max-w-[100px] truncate">{user.name.split(' ')[0]}</span>
+                    <span className="max-w-[100px] truncate">{displayName.split(/\s+/)[0]}</span>
                     <ChevronDown className={`w-3 h-3 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {dropdownOpen && (
                     <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-green-100 overflow-hidden z-50">
                       <div className="px-4 py-3 bg-green-50 border-b border-green-100">
-                        <p className="text-sm font-medium text-forest-800">{user.name}</p>
+                        <p className="text-sm font-medium text-forest-800">{displayName}</p>
                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         <span className="inline-block mt-1 text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded-full capitalize">{user.role}</span>
                       </div>
                       <div className="p-2">
-                        <button onClick={() => { router.push('/orders'); setDropdownOpen(false) }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-xl transition-colors">
+                        <button type="button" onClick={() => { setDropdownOpen(false); hardNavigate('/orders') }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-xl transition-colors">
                           <Package className="w-4 h-4" /> My Orders
                         </button>
-                        <button onClick={() => { router.push('/profile'); setDropdownOpen(false) }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-xl transition-colors">
+                        <button type="button" onClick={() => { setDropdownOpen(false); hardNavigate('/profile') }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-xl transition-colors">
                           <User className="w-4 h-4" /> My Profile
                         </button>
                         <hr className="my-1 border-green-100" />
@@ -319,10 +330,10 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
                 ))}
                 {user ? (
                   <div className="mt-2 p-3 bg-green-50 rounded-xl">
-                    <p className="text-sm font-medium text-forest-800">{user.name}</p>
+                    <p className="text-sm font-medium text-forest-800">{displayName}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                     <div className="flex gap-2 mt-2">
-                      <button onClick={() => { router.push('/orders'); setMobileOpen(false) }} className="flex-1 text-sm text-forest-700 py-1.5 border border-green-200 rounded-lg">Orders</button>
+                      <button type="button" onClick={() => { setMobileOpen(false); hardNavigate('/orders') }} className="flex-1 text-sm text-forest-700 py-1.5 border border-green-200 rounded-lg">Orders</button>
                       <button onClick={() => { logout(); setMobileOpen(false) }} className="flex-1 text-sm text-red-600 py-1.5 border border-red-200 rounded-lg">Sign out</button>
                     </div>
                   </div>
