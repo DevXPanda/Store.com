@@ -62,7 +62,7 @@ function ProfileField({
 }
 
 export default function ProfilePage() {
-  const { user, logout, loading } = useAuth()
+  const { user, logout, loading, updateUser } = useAuth()
   const router = useRouter()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [saving, setSaving] = useState(false)
@@ -76,6 +76,30 @@ export default function ProfilePage() {
     if (loading) return
     if (!user) { router.replace('/'); return }
     setForm(f => ({ ...f, name: user.name || '', }))
+    // Fetch latest profile from Convex so stale cookie data does not override production UI.
+    if (CONVEX_URL && user.id) {
+      fetch(`${CONVEX_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'auth:getUserById', args: { id: user.id } }),
+      })
+        .then(r => r.json())
+        .then(d => {
+          const latest = d?.value
+          if (!latest) return
+          setForm(f => ({
+            ...f,
+            name: latest.name || '',
+            phone: latest.phone || '',
+          }))
+          updateUser({
+            name: latest.name || user.name,
+            email: latest.email || user.email,
+            role: latest.role || user.role,
+          })
+        })
+        .catch(() => {})
+    }
     // Fetch user order count
     if (CONVEX_URL && user.email) {
       fetch(`${CONVEX_URL}/api/query`, {
@@ -106,12 +130,13 @@ export default function ProfilePage() {
     if (!form.name.trim()) { setError('Name is required'); return }
     setSaving(true); setError('')
     try {
-      if (CONVEX_URL && (user as any)._id) {
+      if (CONVEX_URL && user.id) {
         await fetch(`${CONVEX_URL}/api/mutation`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'auth:updateUser', args: { id: (user as any)._id, name: form.name, phone: form.phone } }),
+          body: JSON.stringify({ path: 'auth:updateUser', args: { id: user.id, name: form.name, phone: form.phone } }),
         })
       }
+      updateUser({ name: form.name })
       setSaved(true); setEditing(false)
       setTimeout(() => setSaved(false), 2500)
     } catch { setError('Failed to save. Try again.') }
