@@ -845,7 +845,7 @@ export default function AdminDashboard() {
             value={productSearch}
             onChange={e => setProductSearch(e.target.value)}
             placeholder={`Search ${products.length} products...`}
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 240, outline: "none" }} />
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 240, outline: "none" }}
             onFocus={() => { productSearchFocusedRef.current = true; }}
             onBlur={() => {
               window.setTimeout(() => {
@@ -854,6 +854,7 @@ export default function AdminDashboard() {
                 }
               }, 50);
             }}
+          />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {selectedProductIds.length > 0 && <>
