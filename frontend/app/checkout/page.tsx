@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { ArrowLeft, MapPin, CreditCard, Truck, CheckCircle, Loader2, ShieldCheck, Tag, Zap } from 'lucide-react'
 import { mapConvexProduct } from '@/lib/catalog'
 import { useConvexQuery } from '@/lib/convexFetch'
@@ -29,6 +29,7 @@ declare global { interface Window { Razorpay: any } }
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const { user } = useAuth()
   const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
   const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
@@ -46,11 +47,37 @@ export default function CheckoutPage() {
     paymentMethod: 'cod' as 'cod' | 'upi' | 'online',
   })
 
-  useEffect(() => {
+  const loadCartFromStorage = useCallback(() => {
     try {
       const saved = localStorage.getItem('vegfru_cart')
-      if (saved) setCartItems(JSON.parse(saved))
-    } catch {}
+      setCartItems(saved ? JSON.parse(saved) : [])
+    } catch {
+      setCartItems([])
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    loadCartFromStorage()
+  }, [loadCartFromStorage])
+
+  useEffect(() => {
+    if (pathname === '/checkout') loadCartFromStorage()
+  }, [pathname, loadCartFromStorage])
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'vegfru_cart' || e.key === null) loadCartFromStorage()
+    }
+    const onCartUpdated = () => loadCartFromStorage()
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('vegfru_cart_updated', onCartUpdated)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('vegfru_cart_updated', onCartUpdated)
+    }
+  }, [loadCartFromStorage])
+
+  useEffect(() => {
     if (user) setForm(f => ({ ...f, name: user.name || '', email: user.email || '' }))
   }, [user])
 
@@ -93,6 +120,17 @@ export default function CheckoutPage() {
   const clearCart = () => {
     localStorage.removeItem('vegfru_cart')
     setCartItems([])
+  }
+
+  const goToTrackOrder = () => {
+    if (!orderId) return
+    const target = `/track/${encodeURIComponent(String(orderId))}`
+    router.push(target)
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        if (!window.location.pathname.startsWith('/track/')) window.location.assign(target)
+      }, 120)
+    }
   }
 
   // COD / fallback order placement
@@ -240,7 +278,7 @@ export default function CheckoutPage() {
             📧 A confirmation will be sent to <strong>{form.email || 'your email'}</strong>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <button onClick={() => router.push(`/track/${orderId}`)}
+            <button onClick={goToTrackOrder}
               style={{ width:'100%', background:'white', color:'#14532d', border:'2px solid #14532d', borderRadius:14, padding:'13px', fontSize:15, fontWeight:600, cursor:'pointer' }}>
               Track Order →
             </button>

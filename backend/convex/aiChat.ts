@@ -51,6 +51,27 @@ export const getSession = query({
   },
 });
 
+export const getSessionsByIds = query({
+  args: { sessionIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const unique = Array.from(new Set(args.sessionIds)).slice(0, 30);
+    const sessions = await Promise.all(
+      unique.map(async (sessionId) =>
+        ctx.db.query("aiChatSessions").withIndex("by_session", (q) => q.eq("sessionId", sessionId)).first()
+      )
+    );
+    return sessions
+      .filter(Boolean)
+      .sort((a: any, b: any) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+      .map((s: any) => ({
+        sessionId: s.sessionId,
+        updatedAt: s.updatedAt,
+        totalMessages: s.totalMessages,
+        preview: (s.messages?.[s.messages.length - 1]?.content || "").slice(0, 90),
+      }));
+  },
+});
+
 // Increment orders placed via AI
 export const incrementAIOrders = mutation({
   args: { sessionId: v.string() },

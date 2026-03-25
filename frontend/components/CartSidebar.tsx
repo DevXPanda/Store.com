@@ -37,7 +37,13 @@ export default function CartSidebar({ isOpen, onClose, items, onRemove, onUpdate
 
   const goToCheckout = () => {
     onClose()
-    router.push('/checkout')
+    const target = '/checkout'
+    router.push(target)
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        if (window.location.pathname !== target) window.location.assign(target)
+      }, 120)
+    }
   }
 
   return (

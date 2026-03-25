@@ -57,7 +57,6 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: '/shop', destination: '/#shop', permanent: false },
       { source: '/cart', destination: '/', permanent: false },
       {
         source: '/admin',

@@ -20,9 +20,69 @@ async function fetchCatalogForPrompt(): Promise<string> {
   }
 }
 
-const buildSystemPrompt = async () => {
+async function fetchOrdersByEmailForPrompt(email: string): Promise<string> {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!url || !email.trim()) return '(Could not load orders.)'
+  try {
+    const r = await fetch(`${url}/api/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: 'orders:getOrdersByEmail',
+        args: { email: email.trim().toLowerCase() },
+      }),
+    })
+    const j = await r.json()
+    const list = j.value || []
+    if (!Array.isArray(list) || list.length === 0) {
+      return '(No orders found for this account email yet.)'
+    }
+    return list
+      .slice(0, 15)
+      .map((o: Record<string, unknown>) => {
+        const id = String(o._id ?? '')
+        const short = id.slice(-8).toUpperCase()
+        const status = String(o.status ?? '')
+        const total = o.total
+        const pay = String(o.paymentMethod ?? '')
+        const created = o.createdAt != null ? new Date(Number(o.createdAt)).toLocaleString('en-IN') : ''
+        const addr = String(o.deliveryAddress ?? '').replace(/\s+/g, ' ').slice(0, 120)
+        return `- **#${short}** (internal id ends with ${short}) | status: **${status}** | total: ₹${total} | payment: ${pay} | placed: ${created}${addr ? ` | address: ${addr}` : ''}`
+      })
+      .join('\n')
+  } catch {
+    return '(Orders temporarily unavailable.)'
+  }
+}
+
+type BuildPromptOpts = { userEmail?: string; userName?: string }
+
+const buildSystemPrompt = async (opts?: BuildPromptOpts) => {
   const catalogBlock = await fetchCatalogForPrompt()
+  let userOrdersSection = ''
+  if (opts?.userEmail?.trim()) {
+    const block = await fetchOrdersByEmailForPrompt(opts.userEmail)
+    const who = opts.userName?.trim() ? `**${opts.userName.trim()}** (${opts.userEmail.trim()})` : opts.userEmail.trim()
+    userOrdersSection = `
+👤 LOGGED-IN CUSTOMER: ${who}
+
+📋 ORDERS LINKED TO THIS PROFILE (database — use for status / ETA / payment):
+${block}
+
+🔔 ORDER UPDATE RULES (IMPORTANT):
+- User is logged in — **do NOT ask for "registered mobile number"** or phone to verify identity. Order ID (#XXXXXXXX) is still OK if they mention one specific order.
+- For "order update", "mera order kahan hai", "kab aayega": answer from the list above. Match **#XXXXXXXX** (last 8 chars, case-insensitive) to the right row if user gives a code like #YD83G9SW.
+- If multiple orders, briefly list the latest ones with status and remind ETA is typically **4–6 hours** after placement unless already delivered/cancelled.
+- If the list says no orders, say politely that this account has no orders yet, and they can shop or share an order ID if they used another email/guest checkout.
+`
+  } else {
+    userOrdersSection = `
+👤 USER NOT LOGGED IN (no profile email in this chat session):
+- Order updates: ask for **order ID** (#XXXXXXXX) or suggest logging in / My Orders page. You may ask for email only if needed to look up — do not insist on mobile number.
+`
+  }
   return `You are "Leafy" — VegFru ka friendly AI shopping assistant. VegFru ek premium farm-fresh vegetables aur fruits delivery platform hai — Faridabad, India mein based, Delhi NCR mein deliver karta hai.
+${userOrdersSection}
 
 🌿 TUMHARI PERSONALITY:
 - Warm, helpful, conversational — bilkul ek knowledgeable dost ki tarah jo farmer's market pe mile
@@ -40,6 +100,7 @@ const buildSystemPrompt = async () => {
 6. BUDGET SHOPPING — best value combinations, saste aur nutritious picks
 7. COOKING TIPS — specific produce ke liye quick prep tips
 8. COMPARISONS — similar products mein se choose karne mein help karo
+9. ORDER ETA Q&A — "mera order kab aayega?" pe clear delivery timeline aur process samjhao
 
 📦 FULL PRODUCT CATALOG (naam | category | price | unit | tag | origin):
 ${catalogBlock}
@@ -49,6 +110,7 @@ ${catalogBlock}
 - Delivery time: 4-6 hours
 - Serving: Faridabad, Gurugram, Delhi NCR
 - Same day harvest produce
+- If user asks ETA/time, explain: order confirm -> packing -> dispatch -> delivered in approx 4-6 hours.
 
 💳 PAYMENT: COD, UPI, Card accepted
 
@@ -56,6 +118,7 @@ ${catalogBlock}
 Helpful message ke saath EXACTLY yeh JSON block include karo:
 [ORDER_ITEMS: {"items":[{"name":"Cherry Tomatoes","qty":2,"unit":"500g","price":49}]}]
 Sirf catalog ke products use karo. Names exactly match karein.
+If multiple items are requested, include all of them in the same ORDER_ITEMS list.
 
 🗣️ HINGLISH EXAMPLES:
 - "konsa fruit shi rhega" → Current season fruits suggest karo with prices
@@ -91,7 +154,12 @@ function parseOrderItems(text: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json()
+    const body = await req.json()
+    const { messages, userEmail, userName } = body as {
+      messages?: unknown
+      userEmail?: string
+      userName?: string
+    }
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ message: "Something went wrong. Please try again! 🌿", orderItems: [] })
     }
@@ -124,7 +192,10 @@ export async function POST(req: NextRequest) {
       .slice(-10)
       .map((m: any) => ({ role: m.role as 'user'|'assistant', content: String(m.content) }))
 
-    const systemPrompt = await buildSystemPrompt()
+    const systemPrompt = await buildSystemPrompt({
+      userEmail: typeof userEmail === 'string' ? userEmail : undefined,
+      userName: typeof userName === 'string' ? userName : undefined,
+    })
 
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',

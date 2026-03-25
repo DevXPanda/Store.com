@@ -64,6 +64,8 @@ export const placeOrder = mutation({
     paymentMethod: v.union(v.literal("cod"), v.literal("online"), v.literal("upi")),
     notes: v.optional(v.string()),
     razorpayOrderId: v.optional(v.string()),
+    aiSessionId: v.optional(v.string()),
+    orderedViaAI: v.optional(v.boolean()),
     items: v.array(v.object({
       productId: v.optional(v.id("products")),
       productName: v.string(),
@@ -114,7 +116,8 @@ export const getOrdersByEmail = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const all = await ctx.db.query("orders").withIndex("by_created").order("desc").collect();
-    return all.filter(o => o.customerEmail === args.email).slice(0, 50);
+    const want = args.email.trim().toLowerCase();
+    return all.filter(o => o.customerEmail.trim().toLowerCase() === want).slice(0, 50);
   },
 });
 

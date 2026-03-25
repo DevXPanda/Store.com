@@ -10,12 +10,13 @@ const ITEMS_PER_PAGE = 24
 interface Props {
   onAddToCart: (id: string, qty: number) => void
   initialSearch?: string
+  initialCategory?: string
 }
 
-export default function ProductsSection({ onAddToCart, initialSearch = '' }: Props) {
+export default function ProductsSection({ onAddToCart, initialSearch = '', initialCategory = 'all' }: Props) {
   const { data: rawProducts, loading } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
   const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [activeCategory, setActiveCategory] = useState(initialCategory || 'all')
   const [sortBy, setSortBy] = useState('featured')
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [page, setPage] = useState(1)
@@ -25,6 +26,13 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
   useEffect(() => {
     if (initialSearch) { setSearchQuery(initialSearch); setActiveCategory('all') }
   }, [initialSearch])
+  useEffect(() => {
+    if (!initialSearch) setSearchQuery('')
+  }, [initialSearch])
+  useEffect(() => {
+    setActiveCategory(initialCategory || 'all')
+    setPage(1)
+  }, [initialCategory])
 
   const filtered = useMemo(() => {
     let base = searchQuery.trim()
@@ -32,15 +40,15 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
       : productsByCategory(products, activeCategory)
 
     return [...base].sort((a, b) => {
-      if (sortBy === 'price-asc')  return a.price - b.price
+      if (sortBy === 'price-asc') return a.price - b.price
       if (sortBy === 'price-desc') return b.price - a.price
-      if (sortBy === 'rating')     return b.rating - a.rating
-      if (sortBy === 'reviews')    return b.reviews - a.reviews
-      if (sortBy === 'discount')   return (b.originalPrice - b.price) - (a.originalPrice - a.price)
+      if (sortBy === 'rating') return b.rating - a.rating
+      if (sortBy === 'reviews') return b.reviews - a.reviews
+      if (sortBy === 'discount') return (b.originalPrice - b.price) - (a.originalPrice - a.price)
       const aB = a.badge ? 1 : 0; const bB = b.badge ? 1 : 0
       return bB - aB || b.rating - a.rating
     })
-  }, [activeCategory, sortBy, searchQuery])
+  }, [products, activeCategory, sortBy, searchQuery])
 
   const paginated = filtered.slice(0, page * ITEMS_PER_PAGE)
   const hasMore = paginated.length < filtered.length
@@ -48,8 +56,8 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
   const handleCatChange = (cat: string) => { setActiveCategory(cat); setSearchQuery(''); setPage(1) }
 
   return (
-    <section id="shop" style={{ padding: '80px 0', background: '#FEFAE0' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+    <section id="shop" style={{ padding: '80px 0', background: '#FEFAE0', scrollMarginTop: 110 }}>
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-6">
         {/* Header */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 32 }}>
           <p style={{ fontFamily: 'monospace', fontSize: 11, color: '#15803d', letterSpacing: '0.15em', textTransform: 'uppercase', margin: 0 }}>· What's fresh today ·</p>
@@ -93,10 +101,12 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 32, scrollbarWidth: 'none' }}>
           {categories.map(cat => (
             <button key={cat.id} onClick={() => handleCatChange(cat.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 40, border: '1.5px solid', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s', fontSize: 13, fontWeight: 500,
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 40, border: '1.5px solid', whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.2s', fontSize: 13, fontWeight: 500,
                 background: activeCategory === cat.id ? '#14532d' : 'white',
                 borderColor: activeCategory === cat.id ? '#14532d' : '#e5e7eb',
-                color: activeCategory === cat.id ? 'white' : '#374151' }}>
+                color: activeCategory === cat.id ? 'white' : '#374151'
+              }}>
               {cat.emoji} {cat.label}
             </button>
           ))}
@@ -125,7 +135,7 @@ export default function ProductsSection({ onAddToCart, initialSearch = '' }: Pro
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+          <div className="grid grid-cols-2 gap-3 min-w-0 sm:gap-5 md:[grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]">
             {paginated.map(product => (
               <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} />
             ))}

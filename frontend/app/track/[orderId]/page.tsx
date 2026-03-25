@@ -25,7 +25,9 @@ const STEPS = ['Placed','Confirmed','Packed','Assigned','Out for Delivery','Deli
 export default function TrackOrderPage() {
   const params = useParams()
   const router = useRouter()
-  const orderId = params.orderId as string
+  const rawOrderId = params.orderId as string
+  let orderId = rawOrderId
+  try { orderId = decodeURIComponent(rawOrderId) } catch { /* keep raw */ }
   const [cartCount, setCartCount] = useState(0)
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)

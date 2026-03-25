@@ -7,6 +7,8 @@ export async function POST(req: NextRequest) {
     if (!to || !orderId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
     const orderIdShort = String(orderId).slice(-8).toUpperCase()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin || 'https://vegfru.in'
+    const trackUrl = `${baseUrl.replace(/\/$/, '')}/track/${encodeURIComponent(String(orderId))}`
 
     const itemsHtml = (items || []).map((item: any) => `
       <tr>
@@ -31,7 +33,7 @@ ${itemsHtml}
 <p style="font-size:13px;color:#6b7280;margin:0 0 6px;"><strong>Payment:</strong> ${paymentMethod?.toUpperCase()}</p>
 <p style="font-size:13px;color:#6b7280;margin:0 0 6px;"><strong>Delivery:</strong> ${deliveryFee === 0 ? 'FREE' : 'Rs.'+deliveryFee}</p>
 <p style="font-size:13px;color:#6b7280;margin:0;"><strong>Address:</strong> ${address}</p>
-<div style="text-align:center;margin-top:20px;"><a href="https://vegfru.in/orders" style="background:#14532d;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">Track Order</a></div>
+<div style="text-align:center;margin-top:20px;"><a href="${trackUrl}" style="background:#14532d;color:white;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">Track Order</a></div>
 <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:16px;">Questions? WhatsApp: +91 98000 00001 | support@vegfru.in</p>
 </div>
 </div></body></html>`

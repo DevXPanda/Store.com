@@ -20,15 +20,25 @@ export default function ProductCard({ product, onAddToCart }: { product: Catalog
     setAdded(true); onAddToCart(product.id, qty); setTimeout(() => setAdded(false), 2000)
   }
 
-  const handleCardClick = () => router.push(`/product/${product.id}`)
+  const handleCardClick = () => {
+    if (!product.id) return
+    const target = `/product/${encodeURIComponent(product.id)}`
+    router.push(target)
+    // Fallback for cases where client routing doesn't commit.
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        if (window.location.pathname !== target) window.location.assign(target)
+      }, 120)
+    }
+  }
 
   return (
     <div onClick={handleCardClick}
       style={{ background: 'white', borderRadius: 24, overflow: 'hidden', border: '1px solid #f3f4f6', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', transition: 'all 0.3s', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
       onMouseEnter={e => { (e.currentTarget).style.boxShadow = '0 16px 48px rgba(0,0,0,0.1)'; (e.currentTarget).style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { (e.currentTarget).style.boxShadow = '0 2px 12px rgba(0,0,0,0.04)'; (e.currentTarget).style.transform = 'translateY(0)' }}>
-      {/* Image */}
-      <div style={{ position: 'relative', height: 180, overflow: 'hidden', flexShrink: 0 }}>
+      {/* Image — square on all sizes for consistent grid tiles */}
+      <div className="relative w-full shrink-0 overflow-hidden aspect-square">
         {product.image && !imgErr ? (
           <>
             <img src={product.image} alt={product.name} onError={() => setImgErr(true)}
@@ -60,33 +70,42 @@ export default function ProductCard({ product, onAddToCart }: { product: Catalog
       </div>
 
       {/* Info */}
-      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+      <div className="flex flex-1 flex-col gap-2 p-2.5 sm:gap-2.5 sm:p-4">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ padding: '2px 8px', borderRadius: 8, background: `${product.accent}18`, color: product.accent, fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'monospace' }}>{product.tag}</span>
+          <span style={{ padding: '2px 8px', borderRadius: 8, background: `${product.accent}18`, color: product.accent, fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 88 }}>
+            {product.tag}
+          </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <Star style={{ width: 11, height: 11, fill: '#f59e0b', color: '#f59e0b' }} />
-            <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#4b5563', fontWeight: 600 }}>{product.rating}</span>
+            <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#4b5563', fontWeight: 600 }}>
+              {Number(product.rating || 0).toFixed(1)}
+            </span>
             <span style={{ fontSize: 11, color: '#9ca3af' }}>({product.reviews.toLocaleString()})</span>
           </div>
         </div>
-        <div>
-          <h3 style={{ margin: 0, fontFamily: '"Playfair Display", serif', fontWeight: 700, fontSize: 15.5, color: '#14532d', lineHeight: 1.3 }}>{product.name}</h3>
-          <p style={{ margin: '3px 0 0', fontSize: 12.5, color: '#6b7280', lineHeight: 1.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.description}</p>
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 font-display text-[13px] font-bold leading-snug text-[#14532d] sm:text-[15.5px]">{product.name}</h3>
+          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-gray-500 sm:text-[12.5px]">{product.description}</p>
         </div>
-        <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 4 }}><span>📍</span>{product.origin}</div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontFamily: '"Playfair Display", serif', fontWeight: 800, fontSize: 22, color: '#14532d' }}>₹{product.price}</span>
-          <span style={{ fontSize: 12, color: '#9ca3af', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>
-          <span style={{ fontSize: 11.5, color: '#6b7280' }}>/ {product.unit}</span>
+        <div className="flex items-center gap-1 text-[10px] text-gray-400 sm:text-[11px]"><span>📍</span><span className="truncate">{product.origin}</span></div>
+        <div className="flex flex-wrap items-baseline gap-1 sm:gap-1.5">
+          <span className="font-display text-lg font-extrabold text-[#14532d] sm:text-[22px]">₹{product.price}</span>
+          <span className="text-[10px] text-gray-400 line-through sm:text-xs">₹{product.originalPrice}</span>
+          <span className="text-[10px] text-gray-600 sm:text-[11.5px]">/ {product.unit}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f9fafb', borderRadius: 12, padding: '4px 6px', border: '1px solid #f3f4f6' }}>
-            <button onClick={e => { e.stopPropagation(); setQty(Math.max(1, qty - 1)) }} style={{ width: 26, height: 26, borderRadius: 8, background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>−</button>
-            <span style={{ width: 24, textAlign: 'center', fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: '#14532d' }}>{qty}</span>
-            <button onClick={e => { e.stopPropagation(); setQty(qty + 1) }} style={{ width: 26, height: 26, borderRadius: 8, background: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>+</button>
+        <div className="mt-auto flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+          <div className="flex items-center justify-center gap-0.5 self-center rounded-[10px] border border-gray-100 bg-gray-50 p-0.5 sm:self-auto">
+            <button type="button" onClick={e => { e.stopPropagation(); setQty(Math.max(1, qty - 1)) }} className="flex h-[22px] w-[22px] items-center justify-center rounded-md border-0 bg-white text-sm font-bold text-gray-700 shadow-sm">−</button>
+            <span className="w-5 text-center font-mono text-xs font-bold text-[#14532d] sm:w-[18px] sm:text-[13px]">{qty}</span>
+            <button type="button" onClick={e => { e.stopPropagation(); setQty(qty + 1) }} className="flex h-[22px] w-[22px] items-center justify-center rounded-md border-0 bg-white text-sm font-bold text-gray-700 shadow-sm">+</button>
           </div>
-          <button onClick={handleAdd}
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 0', borderRadius: 13, border: 'none', cursor: 'pointer', background: added ? '#22c55e' : 'linear-gradient(135deg, #14532d, #166534)', color: 'white', fontSize: 13.5, fontWeight: 600, fontFamily: '"DM Sans", sans-serif', boxShadow: added ? '0 4px 16px rgba(34,197,94,0.3)' : '0 4px 16px rgba(22,101,52,0.25)', transition: 'all 0.25s' }}>
+          <button type="button" onClick={handleAdd}
+            className="flex min-h-[38px] w-full items-center justify-center gap-1 rounded-[11px] border-0 px-2 text-xs font-semibold text-white transition-all sm:min-h-[38px] sm:flex-1 sm:text-[12.5px]"
+            style={{
+              background: added ? '#22c55e' : 'linear-gradient(135deg, #14532d, #166534)',
+              boxShadow: added ? '0 4px 16px rgba(34,197,94,0.3)' : '0 4px 16px rgba(22,101,52,0.25)',
+              fontFamily: '"DM Sans", sans-serif',
+            }}>
             {added ? <><Check size={15} />Added!</> : <><Plus size={15} />Add to Cart</>}
           </button>
         </div>

@@ -47,8 +47,10 @@ export const updateProduct = mutation({
   args: {
     id: v.id("products"),
     price: v.optional(v.number()), stock: v.optional(v.number()),
-    isActive: v.optional(v.boolean()), badge: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    badge: v.optional(v.string()),
     description: v.optional(v.string()),
+    image: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;

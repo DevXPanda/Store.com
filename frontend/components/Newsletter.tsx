@@ -12,22 +12,49 @@ export default function Newsletter() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setMsg('Please enter a valid email address'); setStatus('error'); return
+    }
+    if (!CONVEX_URL) {
+      setMsg('Subscription service is unavailable right now. Please try again.')
+      setStatus('error')
+      return
     }
     setStatus('loading')
     try {
-      if (CONVEX_URL) {
-        const res = await fetch(`${CONVEX_URL}/api/mutation`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: 'orders:subscribeNewsletter', args: { email } }),
-        })
-        const data = await res.json()
-        if (data.value?.alreadySubscribed) { setMsg("You're already subscribed! 🌿"); setStatus('success'); return }
+      const res = await fetch(`${CONVEX_URL}/api/mutation`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'orders:subscribeNewsletter', args: { email: cleanEmail } }),
+      })
+      const data = await res.json()
+      if (!res.ok || data?.status === 'error') {
+        throw new Error(data?.errorMessage || 'Subscription failed')
       }
-      setMsg('Subscribed! Get ready for farm-fresh updates 🌿'); setStatus('success'); setEmail('')
+      if (data.value?.alreadySubscribed) {
+        setMsg("You're already subscribed! 🌿")
+        setStatus('success')
+        return
+      }
+
+      // Send welcome/subscription confirmation email (non-blocking to DB success).
+      try {
+        const mailRes = await fetch('/api/email/newsletter-subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: cleanEmail }),
+        })
+        const mailData = await mailRes.json()
+        if (!mailRes.ok || mailData?.error) throw new Error(mailData?.error || 'Email send failed')
+        setMsg('Subscribed! Confirmation email sent 🌿')
+      } catch {
+        setMsg('Subscribed in database, but confirmation email could not be sent right now.')
+      }
+      setStatus('success')
+      setEmail('')
     } catch {
-      setMsg('Subscribed! Welcome to VegFru 🌿'); setStatus('success'); setEmail('')
+      setMsg('Could not subscribe right now. Please try again.')
+      setStatus('error')
     }
   }
 

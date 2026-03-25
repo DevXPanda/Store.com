@@ -196,12 +196,14 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
   return (
     <>
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-[#FEFAE0]/95 backdrop-blur-md shadow-sm border-b border-green-100' : 'bg-transparent'}`}>
-        <div className="bg-forest-800 text-green-100 text-xs py-1.5 text-center font-body tracking-wide">
-          <span className="flex items-center justify-center gap-2">
-            <MapPin className="w-3 h-3" />
-            Free delivery above ₹299 · 4–6 hour delivery · Serving Delhi NCR
-            <Bell className="w-3 h-3 ml-2" />
-          </span>
+        <div className="bg-forest-800 text-green-100 text-[11px] sm:text-xs font-body tracking-wide">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 grid grid-cols-[auto,minmax(0,1fr),auto] gap-x-2 sm:gap-x-3 items-start">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-green-200 mt-0.5" aria-hidden />
+            <p className="min-w-0 text-center leading-snug sm:leading-normal [text-wrap:balance]">
+              Free delivery above ₹299 · 4–6 hour delivery · Serving Delhi NCR
+            </p>
+            <Bell className="w-3.5 h-3.5 flex-shrink-0 text-green-200 mt-0.5" aria-hidden />
+          </div>
         </div>
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -331,11 +333,12 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
                 {user ? (
                   <div className="mt-2 p-3 bg-green-50 rounded-xl">
                     <p className="text-sm font-medium text-forest-800">{displayName}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                    <div className="flex gap-2 mt-2">
-                      <button type="button" onClick={() => { setMobileOpen(false); hardNavigate('/orders') }} className="flex-1 text-sm text-forest-700 py-1.5 border border-green-200 rounded-lg">Orders</button>
-                      <button onClick={() => { logout(); setMobileOpen(false) }} className="flex-1 text-sm text-red-600 py-1.5 border border-red-200 rounded-lg">Sign out</button>
+                    <p className="text-xs text-gray-500 break-all">{user.email}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <button type="button" onClick={() => { setMobileOpen(false); hardNavigate('/orders') }} className="text-sm text-forest-700 py-2 border border-green-200 rounded-lg font-medium">My Orders</button>
+                      <button type="button" onClick={() => { setMobileOpen(false); hardNavigate('/profile') }} className="text-sm text-forest-700 py-2 border border-green-200 rounded-lg font-medium">My Profile</button>
                     </div>
+                    <button type="button" onClick={() => { logout(); setMobileOpen(false) }} className="w-full mt-2 text-sm text-red-600 py-2 border border-red-200 rounded-lg font-medium">Sign out</button>
                   </div>
                 ) : (
                   <div className="flex gap-2 mt-2">

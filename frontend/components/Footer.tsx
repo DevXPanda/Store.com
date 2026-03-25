@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { Leaf, Instagram, Twitter, Facebook, Youtube, Mail, Phone, MapPin } from 'lucide-react'
 
 const links = {
@@ -25,7 +26,72 @@ const links = {
   ],
 }
 
+const footerDetails: Record<string, { title: string; details: string; actionHref?: string; actionLabel?: string }> = {
+  'Our Story': {
+    title: 'Our Story',
+    details: 'VegFru connects local farms with city homes. We source fresh produce daily and focus on transparent quality checks.',
+    actionHref: '/#about',
+    actionLabel: 'Read About Us',
+  },
+  'Partner Farms': {
+    title: 'Partner Farms',
+    details: 'We work with trusted farmers across Haryana and nearby regions for seasonal and chemical-safe produce.',
+    actionHref: '/#farms',
+    actionLabel: 'View Partner Farms',
+  },
+  Sustainability: {
+    title: 'Sustainability',
+    details: 'We prioritize low-waste packaging, local sourcing, and route optimization for lower delivery emissions.',
+    actionHref: '/#about',
+    actionLabel: 'Learn More',
+  },
+  Careers: {
+    title: 'Careers',
+    details: 'We are hiring in operations, customer care, and growth roles. Send your resume to careers@vegfru.in.',
+    actionHref: 'mailto:careers@vegfru.in',
+    actionLabel: 'Email Careers',
+  },
+  Press: {
+    title: 'Press',
+    details: 'For media kits, founder interviews, or partnership announcements, contact press@vegfru.in.',
+    actionHref: 'mailto:press@vegfru.in',
+    actionLabel: 'Contact Press',
+  },
+  'Track My Order': {
+    title: 'Track My Order',
+    details: 'Track your order status in real time using your order ID. Updates include packed, out-for-delivery, and delivered.',
+    actionHref: '/orders',
+    actionLabel: 'Track Now',
+  },
+  FAQ: {
+    title: 'FAQ',
+    details: 'Find quick answers on delivery slots, cancellations, substitutions, payment options, and account help.',
+    actionHref: '/#faq',
+    actionLabel: 'Open FAQ',
+  },
+  'Returns Policy': {
+    title: 'Returns Policy',
+    details: 'If an item arrives damaged or below quality, report within the return window for replacement or refund support.',
+    actionHref: '/#returns',
+    actionLabel: 'Read Policy',
+  },
+  'Contact Us': {
+    title: 'Contact Us',
+    details: 'Need help with an order? Email support@vegfru.in or call +91 98000 00001 for quick support.',
+    actionHref: 'mailto:support@vegfru.in',
+    actionLabel: 'Email Support',
+  },
+  'WhatsApp Support': {
+    title: 'WhatsApp Support',
+    details: 'Chat with our support team on WhatsApp for faster order updates and issue resolution.',
+    actionHref: 'https://wa.me/919800000001',
+    actionLabel: 'Open WhatsApp',
+  },
+}
+
 export default function Footer() {
+  const [activeDetail, setActiveDetail] = useState<(typeof footerDetails)[string] | null>(null)
+
   return (
     <footer className="bg-forest-950 text-white py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -68,7 +134,17 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {items.map(({ label, href }) => (
                   <li key={label}>
-                    <a href={href} className="font-body text-sm text-green-200/50 hover:text-green-300 transition-colors">{label}</a>
+                    {(title === 'Company' || title === 'Support') ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveDetail(footerDetails[label] || null)}
+                        className="font-body text-left text-sm text-green-200/50 hover:text-green-300 transition-colors"
+                      >
+                        {label}
+                      </button>
+                    ) : (
+                      <a href={href} className="font-body text-sm text-green-200/50 hover:text-green-300 transition-colors">{label}</a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -85,6 +161,40 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      {activeDetail && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close details modal"
+            onClick={() => setActiveDetail(null)}
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+          />
+          <div className="relative z-[121] w-full max-w-xl rounded-2xl border border-forest-700 bg-forest-900 p-5 shadow-2xl sm:p-6">
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <h4 className="font-display text-lg font-bold text-green-100">{activeDetail.title}</h4>
+              <button
+                type="button"
+                onClick={() => setActiveDetail(null)}
+                className="rounded-md border border-forest-700 px-2 py-1 text-xs text-green-200 hover:bg-forest-800"
+              >
+                Close
+              </button>
+            </div>
+            <p className="font-body text-sm leading-relaxed text-green-200/85">{activeDetail.details}</p>
+            {activeDetail.actionHref && (
+              <a
+                href={activeDetail.actionHref}
+                target={activeDetail.actionHref.startsWith('http') ? '_blank' : undefined}
+                rel={activeDetail.actionHref.startsWith('http') ? 'noreferrer' : undefined}
+                className="mt-4 inline-flex rounded-lg bg-green-700 px-3 py-2 text-xs font-semibold text-white no-underline hover:bg-green-600"
+              >
+                {activeDetail.actionLabel || 'Open'}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </footer>
   )
 }

@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation'
 
 export default function Hero() {
   const router = useRouter()
+  const heroImages = {
+    center: '/images/hero/center.jpg',
+    chips: [
+      '/images/hero/chip-1.jpg',
+      '/images/hero/chip-3.jpg',
+      '/images/hero/chip-5.jpg',
+      '/images/hero/chip-4.jpg',
+    ],
+    // organic: '/images/hero/organic.jpg',
+    // express: '/images/hero/express.jpg',
+  }
 
   const scrollToShop = () => {
     document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' })
@@ -69,15 +80,15 @@ export default function Hero() {
             </div>
 
             {/* Trust signals */}
-            <div className="reveal-up stagger-5 flex flex-wrap gap-6 pt-2">
+            <div className="reveal-up stagger-5 flex flex-wrap items-end gap-6 pt-2">
               <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
+                {/* <div className="flex -space-x-2">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="w-8 h-8 rounded-full bg-green-100 border-2 border-white flex items-center justify-center">
                       <Leaf className="w-4 h-4 text-forest-600" />
                     </div>
                   ))}
-                </div>
+                </div> */}
                 <div>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />)}
@@ -85,7 +96,7 @@ export default function Hero() {
                   <span className="text-xs text-gray-500">Trusted by families across Delhi NCR</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-600 pb-0.5">
                 <Truck className="w-4 h-4 text-green-600" />
                 <span className="text-sm">Free delivery above ₹299</span>
               </div>
@@ -98,24 +109,27 @@ export default function Hero() {
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-200 to-emerald-100 opacity-60" />
               <div className="absolute inset-4 rounded-full bg-white/50 backdrop-blur-sm border border-green-200/50" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-9xl sm:text-[10rem] animate-float select-none drop-shadow-2xl">🥬</span>
+                <div className="w-56 h-56 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-white/80 shadow-2xl animate-float">
+                  <img src={heroImages.center} alt="Fresh vegetables" className="w-full h-full object-cover" />
+                </div>
               </div>
               {[
-                { emoji:'🍅', top:'-12%',  left:'50%',  delay:'0s'   },
-                { emoji:'🥕', top:'20%',   right:'-12%',delay:'1.5s' },
-                { emoji:'🍋', bottom:'-8%',left:'55%',  delay:'0.8s' },
-                { emoji:'🫑', top:'25%',   left:'-10%', delay:'2s'   },
-                { emoji:'🍇', bottom:'15%',right:'-8%', delay:'1s'   },
-              ].map(({ emoji, top, left, right, bottom, delay }, i) => (
-                <div key={i} className="absolute w-14 h-14 bg-white rounded-2xl shadow-lg flex items-center justify-center text-2xl border border-green-100 animate-float"
+                { top: '-12%', left: '50%', delay: '0s' },
+                { top: '20%', right: '-12%', delay: '1.5s' },
+                { bottom: '-8%', left: '55%', delay: '0.8s' },
+                { top: '25%', left: '-10%', delay: '2s' },
+              ].map(({ top, left, right, bottom, delay }, i) => (
+                <div key={i} className="absolute w-14 h-14 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-green-100 animate-float overflow-hidden"
                   style={{ top, left, right, bottom, animationDelay: delay }}>
-                  {emoji}
+                  <img src={heroImages.chips[i]} alt="Fresh produce" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
 
             <div className="absolute top-4 -left-4 bg-white rounded-2xl shadow-xl p-3 flex items-center gap-3 border border-green-50 animate-float">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-lg">🌱</div>
+              {/* <div className="w-10 h-10 bg-green-100 rounded-xl overflow-hidden border border-green-200">
+                <img src={heroImages.organic} alt="Organic produce" className="w-full h-full object-cover" />
+              </div> */}
               <div>
                 <p className="text-xs font-mono text-green-600 uppercase tracking-wide">100% Organic</p>
                 <p className="text-sm font-semibold text-forest-800">No pesticides</p>
@@ -123,7 +137,9 @@ export default function Hero() {
             </div>
 
             <div className="absolute bottom-8 -right-4 bg-forest-800 rounded-2xl shadow-xl p-3 flex items-center gap-3 animate-float-delay">
-              <div className="w-10 h-10 bg-green-700 rounded-xl flex items-center justify-center text-lg">⚡</div>
+              {/* <div className="w-10 h-10 bg-green-700 rounded-xl overflow-hidden border border-green-600">
+                <img src={heroImages.express} alt="Express delivery produce" className="w-full h-full object-cover" />
+              </div> */}
               <div>
                 <p className="text-xs font-mono text-green-300 uppercase tracking-wide">Express</p>
                 <p className="text-sm font-semibold text-white">4–6hr delivery</p>

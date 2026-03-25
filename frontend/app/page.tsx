@@ -76,9 +76,13 @@ function HomeContent() {
       <Hero />
       <MarqueeTicker />
       <Stats />
+      <section id="seasonal" style={{ scrollMarginTop: 110 }} />
       <SeasonalBanner />
+      <section id="bundles" style={{ scrollMarginTop: 110 }} />
       <ProductsSection onAddToCart={handleAddToCart} initialSearch={initialSearch} />
+      <section id="farms" style={{ scrollMarginTop: 110 }} />
       <HowItWorks />
+      <section id="about" style={{ scrollMarginTop: 110 }} />
       <Testimonials />
       <Newsletter />
       <Footer />

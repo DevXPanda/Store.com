@@ -115,6 +115,15 @@ const SubmitBtn = ({ label, loading, onClick, color = "#15803d" }: any) => (
   </button>
 );
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AdminDashboard() {
   const CURL = process.env.NEXT_PUBLIC_CONVEX_URL || "";
 
@@ -139,6 +148,9 @@ export default function AdminDashboard() {
   const [orderFilter, setOrderFilter] = useState("all");
   const [orderSearch, setOrderSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const productSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const productSearchFocusedRef = useRef(false);
   const [userSearch, setUserSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [assignModal, setAssignModal] = useState<string | null>(null);
@@ -146,6 +158,7 @@ export default function AdminDashboard() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [editProduct, setEditProduct] = useState<any>(null);
   const [editUser, setEditUser] = useState<any>(null);
+  const [deleteSelectedProductIds, setDeleteSelectedProductIds] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"ok" | "err">("ok");
@@ -154,9 +167,9 @@ export default function AdminDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  const [newProd, setNewProd] = useState({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "" });
+  const [newProd, setNewProd] = useState({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "", image: "" });
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", phone: "", role: "admin" });
-  const [editProdForm, setEditProdForm] = useState({ price: "", stock: "", badge: "", description: "" });
+  const [editProdForm, setEditProdForm] = useState({ price: "", stock: "", badge: "", description: "", image: "" });
   const [editUserForm, setEditUserForm] = useState({ name: "", phone: "", role: "", isActive: true, newPassword: "" });
 
   function exportOrdersCSV() {
@@ -270,7 +283,9 @@ export default function AdminDashboard() {
     const matchSearch = !q || o.customerName?.toLowerCase().includes(q) || o.customerPhone?.includes(q) || o._id?.toLowerCase().includes(q) || o.deliveryAddress?.toLowerCase().includes(q);
     return matchStatus && matchSearch;
   });
-  const filteredProducts = products.filter(p => p.name?.toLowerCase().includes(productSearch.toLowerCase()));
+  const filteredProducts = products.filter(p =>
+    (p?.name || "").toLowerCase().includes(productSearch.toLowerCase())
+  );
   const filteredUsers = users.filter(u =>
     u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
     u.email?.toLowerCase().includes(userSearch.toLowerCase())
@@ -323,11 +338,46 @@ export default function AdminDashboard() {
     showToast(p.isActive ? "Product deactivated" : "Product activated");
   }
 
+  async function bulkSetProductActive(isActive: boolean) {
+    if (selectedProductIds.length === 0) return;
+    setBusy(true);
+    try {
+      await Promise.all(selectedProductIds.map(id => cm(CURL, "products:updateProduct", { id, isActive })));
+      setProducts(prev => prev.map(p => selectedProductIds.includes(p._id) ? { ...p, isActive } : p));
+      showToast(`${selectedProductIds.length} product(s) ${isActive ? "activated" : "deactivated"}`);
+      setSelectedProductIds([]);
+    } catch {
+      showToast("Bulk update failed", "err");
+    }
+    setBusy(false);
+  }
+
+  useEffect(() => {
+    if (productSearchFocusedRef.current) {
+      productSearchInputRef.current?.focus();
+    }
+  }, [productSearch]);
+
   async function deleteProduct(id: string) {
     if (!confirm("Delete this product permanently?")) return;
     await cm(CURL, "products:deleteProduct", { id });
     setProducts(prev => prev.filter(p => p._id !== id));
     showToast("Product deleted");
+  }
+
+  async function confirmDeleteSelectedProducts() {
+    if (!deleteSelectedProductIds || deleteSelectedProductIds.length === 0) return;
+    setBusy(true);
+    try {
+      await Promise.all(deleteSelectedProductIds.map(id => cm(CURL, "products:deleteProduct", { id })));
+      setProducts(prev => prev.filter(p => !deleteSelectedProductIds.includes(p._id)));
+      setSelectedProductIds([]);
+      setDeleteSelectedProductIds(null);
+      showToast(`${deleteSelectedProductIds.length} product(s) deleted`);
+    } catch {
+      showToast("Bulk delete failed", "err");
+    }
+    setBusy(false);
   }
 
   async function saveEditProduct() {
@@ -340,9 +390,18 @@ export default function AdminDashboard() {
         stock: Number(editProdForm.stock) || editProduct.stock,
         badge: editProdForm.badge || undefined,
         description: editProdForm.description || undefined,
+        image: editProdForm.image.trim() || undefined,
       });
       setProducts(prev => prev.map(p => p._id === editProduct._id
-        ? { ...p, price: Number(editProdForm.price) || p.price, stock: Number(editProdForm.stock) || p.stock, badge: editProdForm.badge || p.badge } : p));
+        ? {
+          ...p,
+          price: Number(editProdForm.price) || p.price,
+          stock: Number(editProdForm.stock) || p.stock,
+          badge: editProdForm.badge || p.badge,
+          description: editProdForm.description || p.description,
+          image: editProdForm.image.trim() || p.image,
+        }
+        : p));
       setEditProduct(null); showToast("Product updated");
     } catch { showToast("Update failed", "err"); }
     setBusy(false);
@@ -357,12 +416,43 @@ export default function AdminDashboard() {
         price: Number(newProd.price), originalPrice: Number(newProd.originalPrice) || Number(newProd.price),
         unit: newProd.unit, emoji: newProd.emoji, stock: Number(newProd.stock) || 0,
         description: newProd.description, tag: newProd.tag, badge: newProd.badge || undefined,
+        image: newProd.image.trim() || undefined,
       });
       setShowAddProduct(false);
-      setNewProd({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "" });
+      setNewProd({ name: "", category: "vegetables", price: "", originalPrice: "", unit: "", emoji: "🥬", stock: "", description: "", tag: "Organic", badge: "", image: "" });
       await loadAll(); showToast("Product added to database");
     } catch { showToast("Add failed", "err"); }
     setBusy(false);
+  }
+
+  async function onNewProductImageFile(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please upload an image file", "err");
+      return;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setNewProd(p => ({ ...p, image: dataUrl }));
+      showToast("Image selected");
+    } catch {
+      showToast("Could not read image", "err");
+    }
+  }
+
+  async function onEditProductImageFile(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please upload an image file", "err");
+      return;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setEditProdForm(f => ({ ...f, image: dataUrl }));
+      showToast("Image selected");
+    } catch {
+      showToast("Could not read image", "err");
+    }
   }
 
   async function addUser() {
@@ -740,17 +830,46 @@ export default function AdminDashboard() {
     </div>
   );
 
+  useEffect(() => {
+    setSelectedProductIds(prev => prev.filter(id => products.some((p: any) => p._id === id)));
+  }, [products]);
+
   // ── Products Tab ──────────────────────────────────────────────
   const ProductsTab = () => (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div style={{ position: "relative" }}>
           <Search size={13} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.3)" }} />
-          <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
+          <input
+            ref={productSearchInputRef}
+            value={productSearch}
+            onChange={e => setProductSearch(e.target.value)}
             placeholder={`Search ${products.length} products...`}
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 12px 8px 32px", color: "var(--adm-text)", fontSize: 13, width: 240, outline: "none" }} />
+            onFocus={() => { productSearchFocusedRef.current = true; }}
+            onBlur={() => {
+              window.setTimeout(() => {
+                if (document.activeElement !== productSearchInputRef.current) {
+                  productSearchFocusedRef.current = false;
+                }
+              }, 50);
+            }}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {selectedProductIds.length > 0 && <>
+            <button onClick={() => { void bulkSetProductActive(true); }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, padding: "8px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+              Activate ({selectedProductIds.length})
+            </button>
+            <button onClick={() => { void bulkSetProductActive(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 10, padding: "8px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+              Deactivate
+            </button>
+            {isSuperAdmin && <button onClick={() => setDeleteSelectedProductIds(selectedProductIds)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(220,38,38,0.12)", color: "#f87171", border: "1px solid rgba(220,38,38,0.25)", borderRadius: 10, padding: "8px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+              Delete ({selectedProductIds.length})
+            </button>}
+          </>}
           {isSuperAdmin && <button onClick={() => setShowAddProduct(true)}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "#15803d", color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
             <Plus size={14} /> Add Product
@@ -763,6 +882,14 @@ export default function AdminDashboard() {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                <th style={{ padding: "13px 12px", width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={filteredProducts.length > 0 && filteredProducts.every((p: any) => selectedProductIds.includes(p._id))}
+                    onChange={e => setSelectedProductIds(e.target.checked ? filteredProducts.map((p: any) => p._id) : [])}
+                    style={{ accentColor: "#15803d", cursor: "pointer" }}
+                  />
+                </th>
                 {["Product", "Category", "Price", "Stock", "Rating", "Status", "Actions"].map(h => (
                   <th key={h} style={{ padding: "13px 16px", textAlign: "left", fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", letterSpacing: 1, fontWeight: 600, textTransform: "uppercase" }}>{h}</th>
                 ))}
@@ -770,11 +897,11 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {loading
-                ? <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>
+                ? <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Loading products...</div>
                 </td></tr>
                 : filteredProducts.length === 0
-                  ? <tr><td colSpan={7} style={{ padding: 48, textAlign: "center" }}>
+                  ? <tr><td colSpan={8} style={{ padding: 48, textAlign: "center" }}>
                     <div style={{ fontSize: 36, marginBottom: 10 }}>📦</div>
                     <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>No products yet. Run <code style={{ background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>npx convex run products:seedProducts</code></div>
                   </td></tr>
@@ -782,6 +909,14 @@ export default function AdminDashboard() {
                     <tr key={p._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", transition: "background 0.1s" }}
                       onMouseEnter={e => (e.currentTarget as any).style.background = "rgba(255,255,255,0.02)"}
                       onMouseLeave={e => (e.currentTarget as any).style.background = "transparent"}>
+                      <td style={{ padding: "12px 12px" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(p._id)}
+                          onChange={e => setSelectedProductIds(prev => e.target.checked ? [...prev, p._id] : prev.filter(id => id !== p._id))}
+                          style={{ accentColor: "#15803d", cursor: "pointer" }}
+                        />
+                      </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ fontSize: 22 }}>{p.emoji}</span>
@@ -822,7 +957,16 @@ export default function AdminDashboard() {
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => { setEditProduct(p); setEditProdForm({ price: String(p.price), stock: String(p.stock), badge: p.badge || "", description: p.description || "" }); }}
+                          <button onClick={() => {
+                            setEditProduct(p);
+                            setEditProdForm({
+                              price: String(p.price),
+                              stock: String(p.stock),
+                              badge: p.badge || "",
+                              description: p.description || "",
+                              image: p.image || "",
+                            });
+                          }}
                             style={{ background: "rgba(59,130,246,0.12)", border: "none", borderRadius: 7, padding: "5px 8px", cursor: "pointer", color: "#60a5fa" }}>
                             <Edit2 size={13} />
                           </button>
@@ -1042,9 +1186,14 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const TABS: Record<string, React.ReactElement> = {
-    dashboard: <Dashboard />, orders: <OrdersTab />, products: <ProductsTab />,
-    delivery: <DeliveryTab />, customers: <CustomersTab />, users: <UsersTab />, activity: <ActivityTab />,
+  const renderTab = () => {
+    if (tab === "orders") return <OrdersTab />;
+    if (tab === "products") return <ProductsTab />;
+    if (tab === "delivery") return <DeliveryTab />;
+    if (tab === "customers") return <CustomersTab />;
+    if (tab === "users") return <UsersTab />;
+    if (tab === "activity") return <ActivityTab />;
+    return <Dashboard />;
   };
 
   const adminTheme: React.CSSProperties = {
@@ -1176,15 +1325,15 @@ export default function AdminDashboard() {
         rightExtra={brandRight}
       />
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Sidebar />
-      {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 120 }} />}
-      {isMobile && (profileOpen || notifOpen) && <button type="button" onClick={() => { setProfileOpen(false); setNotifOpen(false); }} aria-label="Close popovers" style={{ position: "fixed", inset: 0, background: "transparent", border: "none", zIndex: 170 }} />}
+        <Sidebar />
+        {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 120 }} />}
+        {isMobile && (profileOpen || notifOpen) && <button type="button" onClick={() => { setProfileOpen(false); setNotifOpen(false); }} aria-label="Close popovers" style={{ position: "fixed", inset: 0, background: "transparent", border: "none", zIndex: 170 }} />}
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <main style={{ flex: 1, overflow: "auto", padding: isMobile ? 12 : 24 }}>
-          {TABS[tab] || <Dashboard />}
-        </main>
-      </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <main style={{ flex: 1, overflow: "auto", padding: isMobile ? 12 : 24 }}>
+            {renderTab()}
+          </main>
+        </div>
       </div>
 
       {/* Toast */}
@@ -1266,6 +1415,21 @@ export default function AdminDashboard() {
           options={["vegetables", "fruits", "herbs", "exotic", "seasonal", "leafy", "berries", "citrus", "root"]} />
         <FormField label="Description" value={newProd.description} onChange={(v: string) => setNewProd(p => ({ ...p, description: v }))} placeholder="Short description" />
         <FormField label="Badge (optional)" value={newProd.badge} onChange={(v: string) => setNewProd(p => ({ ...p, badge: v }))} placeholder="BESTSELLER / SEASONAL" />
+        <FormField label="Image URL (optional)" value={newProd.image} onChange={(v: string) => setNewProd(p => ({ ...p, image: v }))} placeholder="https://example.com/product.jpg" />
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>
+            Upload Image (optional)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={e => { void onNewProductImageFile(e.target.files?.[0] || null); e.currentTarget.value = ""; }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 12px", color: "var(--adm-text)", fontSize: 13, outline: "none", boxSizing: "border-box" }}
+          />
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>
+            You can either paste an image URL or upload an image file.
+          </div>
+        </div>
         <SubmitBtn label="Save to Convex DB" loading={busy} onClick={addProduct} />
       </Modal>}
 
@@ -1277,8 +1441,45 @@ export default function AdminDashboard() {
         </div>
         <FormField label="Badge" value={editProdForm.badge} onChange={(v: string) => setEditProdForm(f => ({ ...f, badge: v }))} placeholder="BESTSELLER..." />
         <FormField label="Description" value={editProdForm.description} onChange={(v: string) => setEditProdForm(f => ({ ...f, description: v }))} />
+        <FormField label="Image URL (optional)" value={editProdForm.image} onChange={(v: string) => setEditProdForm(f => ({ ...f, image: v }))} placeholder="https://example.com/product.jpg" />
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>
+            Replace Image (optional)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={e => { void onEditProductImageFile(e.target.files?.[0] || null); e.currentTarget.value = ""; }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "9px 12px", color: "var(--adm-text)", fontSize: 13, outline: "none", boxSizing: "border-box" }}
+          />
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>
+            Paste a new image URL or upload a new image file.
+          </div>
+        </div>
         <SubmitBtn label="Save Changes" loading={busy} onClick={saveEditProduct} />
       </Modal>}
+
+      {/* Delete Selected Products Modal */}
+      {deleteSelectedProductIds && deleteSelectedProductIds.length > 0 && (
+        <Modal title="Delete Products?" onClose={() => setDeleteSelectedProductIds(null)}>
+          <div style={{ marginBottom: 14, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 14, color: "rgba(255,255,255,0.85)" }}>
+            You are deleting <b>{deleteSelectedProductIds.length}</b> product(s). This action cannot be undone.
+          </div>
+          <SubmitBtn
+            label="Delete Permanently"
+            loading={busy}
+            onClick={confirmDeleteSelectedProducts}
+            color="#dc2626"
+          />
+          <div style={{ height: 10 }} />
+          <button
+            onClick={() => setDeleteSelectedProductIds(null)}
+            style={{ width: "100%", background: "transparent", border: "1px solid rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.65)", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+        </Modal>
+      )}
 
       {/* Add User Modal (Super Admin) */}
       {showAddUser && <Modal title="Add New Admin" onClose={() => setShowAddUser(false)}>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { X, Send, Mic, MicOff, Volume2, VolumeX, Sparkles, ShoppingCart, Leaf, Loader2, Plus, Check } from 'lucide-react'
 import { mapConvexProduct, type CatalogProduct } from '@/lib/catalog'
 import { useConvexQuery } from '@/lib/convexFetch'
+import { useAuth } from '@/app/AuthContext'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -19,6 +20,13 @@ interface OrderItem {
   price: number
 }
 
+interface ChatHistoryItem {
+  sessionId: string
+  updatedAt: number
+  totalMessages: number
+  preview: string
+}
+
 interface Props {
   onAddToCart?: (productId: string, qty: number) => void
   cartCount?: number
@@ -32,6 +40,37 @@ const QUICK_CHIPS = [
   "Superfoods dikhao ⚡",
   "Mango ke baare mein batao 🥭",
 ]
+
+const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || ''
+const DEFAULT_WELCOME = "👋 Namaste! Main **Leafy** hun — VegFru ka AI assistant! Fresh produce dhundhna ho, recipe chahiye ho, ya order karna ho — sab mein help karunga. Hindi ya English dono mein baat kar sakte ho! 🌿"
+
+type PaymentMethod = 'cod' | 'online' | 'upi'
+const SESSION_IDS_KEY = 'vegfru_ai_session_ids'
+
+function parsePaymentChoice(text: string): PaymentMethod | null {
+  const t = text.toLowerCase()
+  if (t.includes('cod') || t.includes('cash')) return 'cod'
+  if (t.includes('upi')) return 'upi'
+  if (t.includes('online') || t.includes('card') || t.includes('pay now')) return 'online'
+  return null
+}
+
+function getStoredSessionIds(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(SESSION_IDS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 30) : []
+  } catch {
+    return []
+  }
+}
+
+function pushSessionId(sessionId: string) {
+  if (typeof window === 'undefined') return
+  const next = [sessionId, ...getStoredSessionIds().filter((id) => id !== sessionId)].slice(0, 30)
+  localStorage.setItem(SESSION_IDS_KEY, JSON.stringify(next))
+}
 
 function renderMessage(text: string) {
   const clean = text.replace(/\[ORDER_ITEMS:[\s\S]*?\]/, '').trim()
@@ -68,12 +107,13 @@ function extractMentionedProducts(catalog: CatalogProduct[], aiText: string): Ca
 }
 
 export default function AIAssistant({ onAddToCart, cartCount }: Props) {
+  const { user } = useAuth()
   const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
   const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: "👋 Namaste! Main **Leafy** hun — VegFru ka AI assistant! Fresh produce dhundhna ho, recipe chahiye ho, ya order karna ho — sab mein help karunga. Hindi ya English dono mein baat kar sakte ho! 🌿",
+    content: DEFAULT_WELCOME,
     timestamp: new Date(),
   }])
   const [input, setInput] = useState('')
@@ -84,6 +124,13 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
   const [pendingOrderItems, setPendingOrderItems] = useState<OrderItem[]>([])
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set())
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile')
+  const [sessionId, setSessionId] = useState('')
+  const [awaitingPaymentChoice, setAwaitingPaymentChoice] = useState(false)
+  const [awaitingDeliveryDetails, setAwaitingDeliveryDetails] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null)
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
 
   // Use ref for messages to fix stale closure bug
   const messagesRef = useRef<Message[]>(messages)
@@ -104,6 +151,41 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const existing = localStorage.getItem('vegfru_ai_session_id')
+    if (existing) {
+      pushSessionId(existing)
+      setSessionId(existing)
+      return
+    }
+    const created = `ai_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    localStorage.setItem('vegfru_ai_session_id', created)
+    pushSessionId(created)
+    setSessionId(created)
+  }, [])
+
+  const refreshHistory = useCallback(async () => {
+    if (!CONVEX_URL) return
+    const sessionIds = getStoredSessionIds()
+    if (sessionIds.length === 0) { setChatHistory([]); return }
+    try {
+      const r = await fetch(`${CONVEX_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'aiChat:getSessionsByIds', args: { sessionIds } }),
+      })
+      const j = await r.json()
+      if (r.ok && Array.isArray(j?.value)) setChatHistory(j.value)
+    } catch {
+      // ignore history fetch errors
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshHistory()
+  }, [refreshHistory])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     const SpeechRec = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
     setVoiceSupported(Boolean(SpeechRec))
   }, [])
@@ -115,6 +197,70 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 250)
   }, [open])
+
+  useEffect(() => {
+    if (!sessionId || !CONVEX_URL || messages.length === 0 || !sessionReady) return
+    const timer = window.setTimeout(async () => {
+      try {
+        await fetch(`${CONVEX_URL}/api/mutation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: 'aiChat:saveSession',
+            args: {
+              sessionId,
+              messages: messages.map((m) => ({
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp.getTime(),
+              })),
+            },
+          }),
+        })
+      } catch {
+        // keep chat usable even if persistence fails
+      }
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [messages, sessionId, sessionReady])
+
+  useEffect(() => {
+    if (!sessionId || !CONVEX_URL) return
+    let cancelled = false
+    setSessionReady(false)
+    const load = async () => {
+      try {
+        const r = await fetch(`${CONVEX_URL}/api/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'aiChat:getSession', args: { sessionId } }),
+        })
+        const j = await r.json()
+        const saved = j?.value
+        if (!cancelled && r.ok && saved?.messages?.length) {
+          const restored: Message[] = saved.messages.map((m: any) => ({
+            role: m.role,
+            content: String(m.content || ''),
+            timestamp: new Date(Number(m.timestamp || Date.now())),
+          }))
+          setMessages(restored)
+          setPendingOrderItems([])
+          setAwaitingPaymentChoice(false)
+          setAwaitingDeliveryDetails(false)
+          setSelectedPayment(null)
+        }
+      } catch {
+        // keep default start chat on failure
+      } finally {
+        if (!cancelled) {
+          setSessionReady(true)
+          void refreshHistory()
+        }
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [refreshHistory, sessionId])
 
   useEffect(() => {
     return () => {
@@ -298,9 +444,9 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
                 ? '🎤 Voice service blocked lag raha hai (browser side). Chrome/Edge me mic permission + site settings allow karke try karo.'
                 : code === 'aborted'
                   ? '🎤 Voice capture ruk gaya. Mic button ek baar fir press karke normal pace me bolo.'
-                : code === 'no-speech'
-                  ? '🎤 Awaaz detect nahi hui. Thoda clear bolke dubara try karo.'
-                  : '🎤 Voice input start nahi ho paaya. Please once more try karo.'
+                  : code === 'no-speech'
+                    ? '🎤 Awaaz detect nahi hui. Thoda clear bolke dubara try karo.'
+                    : '🎤 Voice input start nahi ho paaya. Please once more try karo.'
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: message,
@@ -339,6 +485,141 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
     setIsListening(false)
   }, [])
 
+  const parseUserCookie = useCallback(() => {
+    if (typeof document === 'undefined') return null
+    const raw = document.cookie.split('; ').find((row) => row.startsWith('vegfru_user='))?.split('=')[1]
+    if (!raw) return null
+    try { return JSON.parse(decodeURIComponent(raw)) as { name?: string; email?: string; phone?: string } } catch { return null }
+  }, [])
+
+  const extractDeliveryDetails = useCallback((text: string) => {
+    const value = text.trim()
+    const phoneMatch = value.match(/(?:\+?91[\s-]?)?([6-9]\d{9})/)
+    const pinMatch = value.match(/\b(\d{6})\b/)
+    const nameMatch = value.match(/name\s*:\s*([^\n,]+)/i)
+    const addressMatch = value.match(/address\s*:\s*([^\n]+)/i)
+    const cityMatch = value.match(/city\s*:\s*([^\n,]+)/i)
+    const emailMatch = value.match(/email\s*:\s*([^\s,]+@[^\s,]+\.[^\s,]+)/i)
+    return {
+      name: (nameMatch?.[1] || '').trim(),
+      phone: (phoneMatch?.[1] || '').trim(),
+      address: (addressMatch?.[1] || '').trim(),
+      city: (cityMatch?.[1] || '').trim(),
+      pincode: (pinMatch?.[1] || '').trim(),
+      email: (emailMatch?.[1] || '').trim(),
+    }
+  }, [])
+
+  const placeAIOrder = useCallback(async (paymentMethod: PaymentMethod, manualDetails?: ReturnType<typeof extractDeliveryDetails>) => {
+    if (!CONVEX_URL) throw new Error('Convex URL missing')
+    if (pendingOrderItems.length === 0) throw new Error('No items selected')
+
+    const fromCookie = parseUserCookie()
+    const details = manualDetails || { name: '', phone: '', address: '', city: '', pincode: '', email: '' }
+    const customerName = details.name || fromCookie?.name || 'VegFru Customer'
+    const customerEmail = details.email || fromCookie?.email || 'customer@vegfru.local'
+    const customerPhone = details.phone || fromCookie?.phone || ''
+    const deliveryAddress = [details.address, details.city, details.pincode].filter(Boolean).join(', ')
+
+    if (!customerPhone || !deliveryAddress) {
+      setAwaitingDeliveryDetails(true)
+      setSelectedPayment(paymentMethod)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Order almost ready ✅ Please send delivery details in this format:\nName: ...\nPhone: ...\nAddress: ...\nCity: ...\nPincode: ...',
+        timestamp: new Date(),
+      }])
+      return null
+    }
+
+    const items = pendingOrderItems.map((item) => {
+      const match = findProductMatch(products, item.name)
+      const unitPrice = item.price || match?.price || 0
+      return {
+        productId: match?.id as any,
+        productName: match?.name || item.name,
+        productEmoji: match?.emoji || '🥬',
+        productImage: match?.image,
+        quantity: Math.max(1, Number(item.qty || 1)),
+        unitPrice,
+        totalPrice: unitPrice * Math.max(1, Number(item.qty || 1)),
+      }
+    })
+
+    const subtotal = items.reduce((s, i) => s + i.totalPrice, 0)
+    const deliveryFee = subtotal >= 299 ? 0 : 39
+    const total = subtotal + deliveryFee
+
+    const r = await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: 'orders:placeOrder',
+        args: {
+          customerName,
+          customerEmail,
+          customerPhone,
+          deliveryAddress,
+          subtotal,
+          deliveryFee,
+          discount: 0,
+          total,
+          paymentMethod,
+          notes: 'Placed via Leafy AI assistant',
+          aiSessionId: sessionId || undefined,
+          orderedViaAI: true,
+          items,
+        },
+      }),
+    })
+    const j = await r.json()
+    if (!r.ok || !j?.value) throw new Error(j?.errorMessage || `HTTP ${r.status}`)
+
+    if (sessionId) {
+      await fetch(`${CONVEX_URL}/api/mutation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'aiChat:incrementAIOrders', args: { sessionId } }),
+      }).catch(() => undefined)
+    }
+
+    fetch('/api/email/order-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: customerEmail,
+        customerName,
+        orderId: j.value,
+        total,
+        deliveryFee,
+        discount: 0,
+        paymentMethod,
+        address: deliveryAddress,
+        items: items.map((it) => ({
+          productName: it.productName,
+          productEmoji: it.productEmoji,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          totalPrice: it.totalPrice,
+        })),
+      }),
+    }).catch(() => undefined)
+
+    setPendingOrderItems([])
+    setAwaitingPaymentChoice(false)
+    setAwaitingDeliveryDetails(false)
+    setSelectedPayment(null)
+
+    const orderId = String(j.value)
+    const eta = '4-6 hours'
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `Order placed successfully 🎉\nOrder ID: **${orderId}**\nPayment: **${paymentMethod.toUpperCase()}**\nEstimated delivery: **${eta}**\nAapka order ab processing mein hai.`,
+      timestamp: new Date(),
+    }])
+    return orderId
+  }, [extractDeliveryDetails, parseUserCookie, pendingOrderItems, products, sessionId])
+
   // ── FIXED sendMessage — uses ref to avoid stale closure ──────
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loadingRef.current) return
@@ -353,6 +634,40 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
     setInput('')
 
     try {
+      if (awaitingDeliveryDetails && selectedPayment) {
+        const details = extractDeliveryDetails(text)
+        const missing = [
+          !details.phone ? 'Phone' : '',
+          !details.address ? 'Address' : '',
+          !details.city ? 'City' : '',
+          !details.pincode ? 'Pincode' : '',
+        ].filter(Boolean)
+        if (missing.length > 0) {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Please share missing details: **${missing.join(', ')}**.\nFormat: Name, Phone, Address, City, Pincode.`,
+            timestamp: new Date(),
+          }])
+          return
+        }
+        await placeAIOrder(selectedPayment, details)
+        return
+      }
+
+      if (awaitingPaymentChoice && pendingOrderItems.length > 0) {
+        const selected = parsePaymentChoice(text)
+        if (!selected) {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Payment method choose karo please: **COD** ya **Online/UPI**.',
+            timestamp: new Date(),
+          }])
+          return
+        }
+        await placeAIOrder(selected)
+        return
+      }
+
       // Build history from ref (always fresh, no stale closure)
       const currentMessages = messagesRef.current
       const history = [...currentMessages, userMsg].map(m => ({
@@ -363,7 +678,11 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          userEmail: user?.email?.trim() ? user.email.trim().toLowerCase() : undefined,
+          userName: user?.name?.trim() || undefined,
+        }),
       })
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -388,6 +707,7 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
           })
           return merged
         })
+        setAwaitingPaymentChoice(true)
       }
 
       // Find products mentioned in response for quick-add chips
@@ -399,6 +719,14 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
         timestamp: new Date(),
         suggestedProducts: suggestedProducts.length > 0 ? suggestedProducts : undefined,
       }])
+
+      if (aiOrderItems.length > 0) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'Aapke selected items ready hain ✅ Payment kaise karna hai — **COD** ya **Online/UPI**?',
+          timestamp: new Date(),
+        }])
+      }
 
       speak(aiContent)
 
@@ -413,7 +741,7 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
       setLoading(false)
       loadingRef.current = false
     }
-  }, [speak]) // ← No 'messages' dependency — fixes stale closure!
+  }, [awaitingDeliveryDetails, awaitingPaymentChoice, extractDeliveryDetails, pendingOrderItems.length, placeAIOrder, selectedPayment, speak, user?.email, user?.name]) // ← No 'messages' dependency — fixes stale closure!
 
   const handleAddOrderItem = (item: OrderItem) => {
     const product = findProductMatch(products, item.name)
@@ -428,6 +756,29 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
     onAddToCart?.(product.id, 1)
     setAddedItems(prev => new Set([...prev, product.name]))
     setTimeout(() => setAddedItems(prev => { const n = new Set(prev); n.delete(product.name); return n }), 2500)
+  }
+
+  const startNewChat = () => {
+    const freshSession = `ai_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    if (typeof window !== 'undefined') localStorage.setItem('vegfru_ai_session_id', freshSession)
+    pushSessionId(freshSession)
+    setSessionId(freshSession)
+    setMessages([{ role: 'assistant', content: DEFAULT_WELCOME, timestamp: new Date() }])
+    setPendingOrderItems([])
+    setAwaitingPaymentChoice(false)
+    setAwaitingDeliveryDetails(false)
+    setSelectedPayment(null)
+    setInput('')
+    setShowHistory(false)
+    void refreshHistory()
+  }
+
+  const continueChatSession = (targetSessionId: string) => {
+    if (!targetSessionId) return
+    if (typeof window !== 'undefined') localStorage.setItem('vegfru_ai_session_id', targetSessionId)
+    pushSessionId(targetSessionId)
+    setSessionId(targetSessionId)
+    setShowHistory(false)
   }
 
   const displayModel = modelName === 'demo' || modelName === 'demo-fallback'
@@ -537,6 +888,30 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
             {voiceEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
 
+          <button
+            onClick={startNewChat}
+            title="New chat"
+            style={{
+              width: 34, height: 34, borderRadius: 12, background: 'rgba(255,255,255,0.1)',
+              border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: '#86efac',
+            }}
+          >
+            <Plus size={15} />
+          </button>
+
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            title="Chat history"
+            style={{
+              width: 34, height: 34, borderRadius: 12, background: showHistory ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.1)',
+              border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: '#86efac', fontSize: 14,
+            }}
+          >
+            🕘
+          </button>
+
           <button onClick={() => setOpen(false)} style={{
             width: 34, height: 34, borderRadius: 12, background: 'rgba(255,255,255,0.1)',
             border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -551,6 +926,41 @@ export default function AIAssistant({ onAddToCart, cartCount }: Props) {
           flex: 1, overflowY: 'auto', padding: '14px 14px 8px',
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
+          {showHistory && (
+            <div style={{
+              background: 'white', border: '1px solid #dcfce7', borderRadius: 14, padding: 10,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#14532d', marginBottom: 8 }}>
+                Chat History
+              </div>
+              {chatHistory.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#6b7280' }}>No previous chats found.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {chatHistory.map((chat) => (
+                    <button
+                      key={chat.sessionId}
+                      onClick={() => continueChatSession(chat.sessionId)}
+                      style={{
+                        textAlign: 'left', background: chat.sessionId === sessionId ? '#f0fdf4' : '#f9fafb',
+                        border: `1px solid ${chat.sessionId === sessionId ? '#86efac' : '#e5e7eb'}`,
+                        borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: '#14532d', fontWeight: 600 }}>
+                        {new Date(chat.updatedAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {chat.preview || 'Continue this chat'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {messages.map((msg, i) => (
             <div key={i} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: 8, alignItems: 'flex-end' }}>
               {msg.role === 'assistant' && (
