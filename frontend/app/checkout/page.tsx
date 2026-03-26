@@ -32,6 +32,7 @@ export default function CheckoutPage() {
   const pathname = usePathname()
   const { user } = useAuth()
   const { data: rawProducts } = useConvexQuery<Record<string, unknown>[]>('products:getAllProducts', { includeInactive: false })
+  const { data: convexRzpKey } = useConvexQuery<string | null>('orders:getRazorpayKey', {})
   const products = useMemo(() => (rawProducts ?? []).map(mapConvexProduct), [rawProducts])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [step, setStep] = useState<'address' | 'payment' | 'success'>('address')
@@ -207,9 +208,9 @@ export default function CheckoutPage() {
     const loaded = await loadRazorpay()
     if (!loaded) { alert('Payment gateway failed to load. Try COD.'); setPayLoading(false); return }
 
-    const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim()
+    const rzpKey = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || convexRzpKey)?.trim()
     if (!rzpKey) {
-      alert('Online payment is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID to backend/.env.local or choose Cash on Delivery.')
+      alert('Online payment is currently unavailable. Please use Cash on Delivery while we update the configuration.')
       setPayLoading(false)
       return
     }

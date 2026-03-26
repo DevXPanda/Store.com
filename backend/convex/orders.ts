@@ -1,6 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+export const getRazorpayKey = query({
+  args: {},
+  handler: async (ctx) => {
+    return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || null;
+  },
+});
+
 export const getAllOrders = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
