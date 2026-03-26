@@ -77,6 +77,7 @@ export default defineSchema({
     avatar: v.optional(v.string()),
     lat: v.optional(v.number()),
     lng: v.optional(v.number()),
+    balance: v.optional(v.number()),
     isActive: v.boolean(),
     lastLogin: v.optional(v.number()),
     createdAt: v.number(),
@@ -269,4 +270,18 @@ export default defineSchema({
     sortOrder: v.number(),
     createdAt: v.number(),
   }).index("by_active", ["isActive"]),
+
+  payouts: defineTable({
+    userId: v.id("users"),
+    userName: v.string(),
+    amount: v.number(),
+    method: v.union(v.literal("upi"), v.literal("bank")),
+    details: v.string(),
+    status: v.union(v.literal("pending"), v.literal("processed"), v.literal("rejected")),
+    createdAt: v.number(),
+    processedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
 });

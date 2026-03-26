@@ -18,7 +18,10 @@ import {
   LogOut,
   Star,
   History,
+  CircleCheck,
+  CircleAlert,
 } from "lucide-react";
+
 import { ThemeToggle } from "@/components/theme-toggle";
 import { VegFruBrandBar } from "@/components/VegFruBrandBar";
 
@@ -94,6 +97,10 @@ export default function DeliveryApp() {
     phone: "",
     rating: 0,
   });
+  const [balance, setBalance] = useState(0);
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ amount: "", method: "upi" as "upi" | "bank", details: "" });
   const [toast, setToast] = useState("");
 
   useEffect(() => {
@@ -123,8 +130,15 @@ export default function DeliveryApp() {
         )
       );
     }
+    const myId = (deliveryBoy as any)._id;
+    if (myId) {
+      const stats = await cq("orders:getDeliveryStats", { deliveryBoyId: myId });
+      if (stats) setBalance((stats as any).balance || 0);
+      const myPayouts = await cq("payouts:getMyPayouts", { userId: myId });
+      if (myPayouts) setPayouts(myPayouts as any[]);
+    }
     setLoading(false);
-  }, []);
+  }, [deliveryBoy]);
 
   useEffect(() => {
     fetchOrders();
@@ -281,7 +295,7 @@ export default function DeliveryApp() {
                     <Phone size={14} /> Call
                   </a>
                   <a
-                    href={order.lat != null && order.lng != null 
+                    href={order.lat != null && order.lng != null
                       ? `https://www.google.com/maps/dir/?api=1&destination=${order.lat},${order.lng}`
                       : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}`
                     }
@@ -351,97 +365,177 @@ export default function DeliveryApp() {
   );
 
   const StatsTab = () => {
-    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const today = new Date().getDay();
-    const weekData = weekDays.map((_, i) => {
-      const dayOrders = delivered.filter((o) => {
-        const d = new Date(o.createdAt).getDay();
-        return d === ((today - 6 + i + 7) % 7);
-      });
-      return dayOrders.length;
-    });
-    const maxVal = Math.max(...weekData, 1);
+    const todayStr = new Date().toDateString();
+    const deliveredToday = orders.filter((o) => o.status === "delivered" && new Date(o.createdAt).toDateString() === todayStr).length;
+    const statsItems = [
+      { label: "Today", value: deliveredToday, color: "text-forest-600" },
+      { label: "Total Done", value: orders.filter((o) => o.status === "delivered").length, color: "text-blue-600" },
+      { label: "Pending", value: orders.filter(o => ["assigned", "picked_up", "out_for_delivery"].includes(o.status)).length, color: "text-amber-600" },
+      { label: "Earnings Tag", value: `₹${orders.filter(o => o.status === 'delivered').length * 70}`, color: "text-emerald-700" },
+    ];
+
+    const submitPayout = async () => {
+      if (!payoutForm.amount || !payoutForm.details) {
+        showToast("Please fill all details");
+        return;
+      }
+      const amount = Number(payoutForm.amount);
+      if (isNaN(amount) || amount <= 0) {
+        showToast("Invalid amount");
+        return;
+      }
+      if (amount > balance) {
+        showToast("Insufficient balance");
+        return;
+      }
+      if (amount < 100) {
+        showToast("Min payout ₹100");
+        return;
+      }
+      try {
+        setUpdating("payout");
+        await cm("payouts:requestPayout", {
+          userId: (deliveryBoy as any)._id,
+          userName: deliveryBoy.name,
+          amount,
+          method: payoutForm.method,
+          details: payoutForm.details,
+        });
+        showToast("Payout requested successfully");
+        setShowPayoutModal(false);
+        setPayoutForm({ amount: "", method: "upi", details: "" });
+        void fetchOrders();
+      } catch (e: any) {
+        showToast(e.message);
+      } finally {
+        setUpdating(null);
+      }
+    };
 
     return (
-      <div className="px-4 pb-4">
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          {[
-            { label: "Total Delivered", val: delivered.length, icon: "✅", color: "text-forest-600 dark:text-forest-400" },
-            { label: "Today Delivered", val: todayDel.length, icon: "📅", color: "text-sky-600 dark:text-sky-400" },
-            { label: "Today's Earnings", val: `₹${earnings}`, icon: "💰", color: "text-amber-600 dark:text-amber-400" },
-            { label: "Active Now", val: active.length, icon: "🛵", color: "text-violet-600 dark:text-violet-400" },
-          ].map(({ label, val, icon, color }) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-border bg-card p-4 shadow-sm dark:shadow-none"
+      <div className="flex flex-col gap-5 p-4">
+        {/* Balance Card */}
+        <div className="rounded-3xl border border-border bg-forest-700 p-6 text-white shadow-lg overflow-hidden relative">
+          <div className="relative z-10">
+            <div className="opacity-80 text-sm font-medium">Available Payout Balance</div>
+            <div className="mt-1 text-4xl font-black">₹{balance}</div>
+            <button
+              onClick={() => setShowPayoutModal(true)}
+              className="mt-6 flex items-center gap-2 rounded-xl bg-white/20 px-5 py-2.5 text-sm font-bold backdrop-blur-md transition hover:bg-white/30"
             >
-              <div className="mb-2 text-2xl">{icon}</div>
-              <div className={cn("text-2xl font-bold", color)}>{val}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+              <IndianRupee size={16} /> Request Payout
+            </button>
+          </div>
+          <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-forest-400/20 blur-2xl" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3.5">
+          {statsItems.map((item) => (
+            <div key={item.label} className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm dark:shadow-none">
+              <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{item.label}</span>
+              <span className={cn("mt-1 text-2xl font-black", item.color)}>{item.value}</span>
             </div>
           ))}
         </div>
 
-        <div className="mb-3.5 rounded-2xl border border-border bg-card p-4 shadow-sm dark:shadow-none">
-          <div className="mb-4 text-sm font-semibold text-card-foreground">Weekly Deliveries</div>
-          <div className="flex h-20 items-end gap-2">
-            {weekDays.map((day, i) => {
-              const pct = weekData[i] / maxVal;
-              const isToday = i === 6;
-              return (
-                <div key={day} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div
-                    className={cn(
-                      "text-[11px] font-medium",
-                      weekData[i] > 0 ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {weekData[i] || ""}
+        {/* Payout History */}
+        <div className="mt-2">
+          <h3 className="mb-3 px-1 text-sm font-bold text-card-foreground">Payout History</h3>
+          {payouts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+              No previous payouts.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {payouts.map((p: any) => (
+                <div key={p._id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg",
+                      p.status === "processed" ? "bg-green-100 text-green-700" : p.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                    )}>
+                      {p.status === "processed" ? <CircleCheck size={18} /> : p.status === "rejected" ? <CircleAlert size={18} /> : <Clock size={14} />}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-card-foreground">₹{p.amount}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{p.method} • {new Date(p.createdAt).toLocaleDateString()}</div>
+                    </div>
                   </div>
-                  <div className="relative h-[50px] w-full rounded-md bg-muted">
-                    <div
-                      className={cn(
-                        "absolute bottom-0 left-0 right-0 rounded-md transition-[height] duration-500",
-                        isToday
-                          ? "bg-gradient-to-t from-forest-800 to-forest-500"
-                          : "bg-forest-500/45 dark:bg-forest-500/35"
-                      )}
-                      style={{ height: `${Math.max(pct * 100, 4)}%` }}
-                    />
-                  </div>
-                  <div
-                    className={cn(
-                      "text-[10px] font-medium",
-                      isToday ? "text-forest-700 dark:text-forest-400" : "text-muted-foreground"
-                    )}
-                  >
-                    {day}
+                  <div className={cn(
+                    "rounded-full px-2.5 py-1 text-[10px] font-bold",
+                    p.status === "processed" ? "bg-green-100 text-green-700" : p.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                  )}>
+                    {p.status.toUpperCase()}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {deliveryBoy.rating > 0 && (
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 dark:border-amber-500/20">
-          <div className="flex items-center gap-3">
-            <div className="text-4xl font-bold text-amber-600 dark:text-amber-400">{deliveryBoy.rating}</div>
-            <div>
-              <div className="mb-1 flex gap-0.5">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    size={16}
-                    className="text-amber-500"
-                    fill={s <= Math.floor(deliveryBoy.rating) ? "currentColor" : "none"}
-                  />
-                ))}
+        {/* Payout Modal */}
+        {showPayoutModal && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center p-4">
+            <div className="w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-card p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+              <div className="mb-5 flex items-center justify-between">
+                <h3 className="text-lg font-bold">Request Earned Money</h3>
+                <button onClick={() => setShowPayoutModal(false)} className="rounded-full bg-muted/50 p-1.5"><X size={20} /></button>
               </div>
-              <div className="text-xs text-muted-foreground">Your delivery rating</div>
+              <div className="mb-6 rounded-2xl bg-forest-50 p-4 dark:bg-forest-900/20">
+                <div className="text-xs text-forest-700 dark:text-forest-400">Current Balance</div>
+                <div className="text-2xl font-black text-forest-900 dark:text-forest-100">₹{balance}</div>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Payout Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={payoutForm.amount}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, amount: e.target.value })}
+                    placeholder="Enter amount (min. ₹100)"
+                    className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-forest-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground ml-1">Receive Through</label>
+                  <div className="flex gap-2">
+                    {["upi", "bank"].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setPayoutForm({ ...payoutForm, method: m as any })}
+                        className={cn(
+                          "flex-1 rounded-xl border py-3 text-xs font-bold uppercase transition",
+                          payoutForm.method === m ? "border-forest-500 bg-forest-50 text-forest-700 dark:bg-forest-900/20" : "border-border bg-muted/30 text-muted-foreground"
+                        )}
+                      >
+                        {m === "upi" ? "UPI ID" : "Bank Details"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground ml-1">
+                    {payoutForm.method === "upi" ? "Enter UPI ID" : "Account No / IFSC / Name"}
+                  </label>
+                  <textarea
+                    value={payoutForm.details}
+                    onChange={(e) => setPayoutForm({ ...payoutForm, details: e.target.value })}
+                    placeholder={payoutForm.method === "upi" ? "e.g. yourname@ybl" : "A/C: 1234567890\nIFSC: SBIN0001234\nName: John Doe"}
+                    rows={payoutForm.method === "bank" ? 3 : 1}
+                    className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-forest-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={submitPayout}
+                  disabled={!!updating}
+                  className="mt-2 w-full rounded-2xl bg-forest-700 py-3.5 text-sm font-bold text-white shadow-lg transition active:scale-95 disabled:opacity-50"
+                >
+                  {updating === "payout" ? "Processing..." : "Submit Request"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
       </div>
     );
@@ -567,6 +661,9 @@ export default function DeliveryApp() {
             {active.length}
           </span>
         )}
+      </div>
+      <div className="flex items-center gap-1.5 rounded-full border border-yellow-300/60 bg-yellow-400 px-2.5 py-1 text-[11px] font-bold text-yellow-950">
+        <span>₹{balance}</span>
       </div>
       <button
         type="button"

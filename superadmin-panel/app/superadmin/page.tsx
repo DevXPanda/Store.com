@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────
-type Tab = "dashboard" | "users" | "applications" | "orders" | "products" | "delivery" | "analytics" | "logs";
-const VALID_TABS: readonly Tab[] = ["dashboard", "users", "applications", "orders", "products", "delivery", "analytics", "logs"];
+type Tab = "dashboard" | "users" | "applications" | "orders" | "products" | "delivery" | "payouts" | "analytics" | "logs";
+const VALID_TABS: readonly Tab[] = ["dashboard", "users", "applications", "orders", "products", "delivery", "payouts", "analytics", "logs"];
 function tabFromSearchParams(sp: { get: (name: string) => string | null }): Tab {
   const p = sp.get("tab") as Tab | null;
   return p && (VALID_TABS as readonly string[]).includes(p) ? p : "dashboard";
@@ -195,6 +195,7 @@ export default function SuperAdminPanel() {
   const [deliveryPartnerApplications, setDeliveryPartnerApplications] = useState<any[]>([]);
   const [processedFranchiseApps, setProcessedFranchiseApps] = useState<any[]>([]);
   const [processedRiderApps, setProcessedRiderApps] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI
@@ -288,7 +289,7 @@ export default function SuperAdminPanel() {
     if (!CURL) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [u, o, p, d, a, rv, tp, pa, dpa, pfa, pra] = await Promise.all([
+      const [u, o, p, d, a, rv, tp, pa, dpa, pfa, pra, pay] = await Promise.all([
         cq("auth:getAllUsers", {}),
         cq("orders:getAllOrders", { limit: 500 }),
         cq("products:getAllProducts", { includeInactive: true }),
@@ -300,6 +301,7 @@ export default function SuperAdminPanel() {
         cq("deliveryPartnerAuth:listPendingDeliveryPartnerApplications", {}),
         cq("adminPhoneAuth:listProcessedOnboardingApplications", { limit: 200 }),
         cq("deliveryPartnerAuth:listProcessedDeliveryPartnerApplications", { limit: 200 }),
+        cq("payouts:getPayoutHistory"),
       ]);
       setUsers(u || []); setOrders(o || []); setProducts(p || []);
       setDeliveryBoys(d || []); setActivityLog(a || []);
@@ -308,6 +310,7 @@ export default function SuperAdminPanel() {
       setDeliveryPartnerApplications(Array.isArray(dpa) ? dpa : []);
       setProcessedFranchiseApps(Array.isArray(pfa) ? pfa : []);
       setProcessedRiderApps(Array.isArray(pra) ? pra : []);
+      setPayouts(pay || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
@@ -863,6 +866,7 @@ export default function SuperAdminPanel() {
     { id: "orders", label: "All Orders", icon: ShoppingBag },
     { id: "products", label: "Product Catalog", icon: Package },
     { id: "delivery", label: "Delivery Ops", icon: Truck },
+    { id: "payouts", label: "Payout Requests", icon: IndianRupee },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "logs", label: "Activity Logs", icon: Activity },
   ];
@@ -889,6 +893,7 @@ export default function SuperAdminPanel() {
               {sidebarOpen && id === "users" && users.length > 0 && <span style={{ background: "rgba(34,197,94,0.2)", color: "#16a34a", fontSize: 10, padding: "2px 7px", borderRadius: 999, fontFamily: "monospace" }}>{users.length}</span>}
               {sidebarOpen && id === "applications" && (partnerApplications.length + deliveryPartnerApplications.length) > 0 && <span style={{ background: "rgba(96,165,250,0.2)", color: "#2563eb", fontSize: 10, padding: "2px 7px", borderRadius: 999, fontFamily: "monospace" }}>{partnerApplications.length + deliveryPartnerApplications.length}</span>}
               {sidebarOpen && id === "orders" && pendingOrders.length > 0 && <span style={{ background: "rgba(251,191,36,0.2)", color: "#b45309", fontSize: 10, padding: "2px 7px", borderRadius: 999, fontFamily: "monospace" }}>{pendingOrders.length}</span>}
+              {sidebarOpen && id === "payouts" && payouts.filter((p: any) => p.status === "pending").length > 0 && <span style={{ background: "rgba(239,68,68,0.2)", color: "#dc2626", fontSize: 10, padding: "2px 7px", borderRadius: 999, fontFamily: "monospace" }}>{payouts.filter((p: any) => p.status === "pending").length}</span>}
             </button>
           );
         })}
@@ -1074,16 +1079,16 @@ export default function SuperAdminPanel() {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--sa-card-border)" }}>
-                {["User", "Contact", "Role", "Status", "Last Login", "Joined", "Actions"].map(h => (
+                {["User", "Contact", "Role", "Balance", "Status", "Last Login", "Joined", "Actions"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 10, color: "var(--sa-muted)", fontFamily: "monospace", letterSpacing: 1.5, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--sa-muted)", fontSize: 13 }}>
+              {loading ? <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "var(--sa-muted)", fontSize: 13 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />Loading users from Convex...</div>
               </td></tr>
-                : filteredUsers.length === 0 ? <tr><td colSpan={7} style={{ padding: 48, textAlign: "center" }}>
+                : filteredUsers.length === 0 ? <tr><td colSpan={8} style={{ padding: 48, textAlign: "center" }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>👤</div>
                   <div style={{ color: "var(--sa-muted)", fontSize: 14 }}>{search ? "No users matching your search" : "No users found. Run the seed command."}</div>
                 </td></tr>
@@ -1107,6 +1112,7 @@ export default function SuperAdminPanel() {
                         <div style={{ fontSize: 11, color: "var(--sa-muted)", fontFamily: "monospace" }}>{u.phone || "—"}</div>
                       </td>
                       <td style={{ padding: "13px 16px" }}><Badge role={u.role} /></td>
+                      <td style={{ padding: "13px 16px", fontSize: 13, fontWeight: 700, color: (u.balance || 0) > 0 ? "#16a34a" : "var(--sa-muted)" }}>₹{u.balance || 0}</td>
                       <td style={{ padding: "13px 16px" }}>
                         <button onClick={() => u.role !== "superadmin" && toggleUserStatus(u)} disabled={u.role === "superadmin"}
                           style={{ background: u.isActive ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)", color: u.isActive ? "#4ade80" : "#f87171", border: `1px solid ${u.isActive ? "rgba(74,222,128,0.25)" : "rgba(248,113,113,0.25)"}`, borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 600, cursor: u.role === "superadmin" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 5 }}>
@@ -1396,6 +1402,10 @@ export default function SuperAdminPanel() {
                       <div style={{ fontSize: 9, color: "var(--sa-muted)", marginTop: 2 }}>{l as string}</div>
                     </div>
                   ))}
+                  <div style={{ background: "var(--sa-surface)", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#10b981" }}>₹{b.balance || 0}</div>
+                    <div style={{ fontSize: 9, color: "var(--sa-muted)", marginTop: 2 }}>Balance</div>
+                  </div>
                 </div>
               </div>
             );
@@ -1788,12 +1798,95 @@ export default function SuperAdminPanel() {
   );
 
 
+  // ── PAYOUTS TAB ─────────────────────────────────────────────
+  const PayoutsTab = () => {
+    const pending = payouts.filter((p: any) => p.status === "pending");
+    const history = payouts.filter((p: any) => p.status !== "pending");
+
+    const processPayout = async (pId: string, status: "processed" | "rejected") => {
+      try {
+        setBusy(true);
+        await cm("payouts:processPayout", { payoutId: pId, status, adminId: (saUser as any)._id || "SA" });
+        showToast(`Payout ${status === "processed" ? "approved" : "rejected"} successfully`);
+        void loadAll();
+      } catch (e: any) {
+        showToast(`Error: ${e.message}`, "err");
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ background: "var(--sa-card-bg)", border: "1px solid var(--sa-card-border)", borderRadius: 16, padding: 20 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--sa-text)", margin: "0 0 16px 0", display: "flex", alignItems: "center", gap: 10 }}>
+            <IndianRupee size={18} color="#16a34a" /> Pending Payout Requests
+          </h3>
+          {pending.length === 0 ? (
+            <div style={{ color: "var(--sa-muted)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>No pending requests.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {pending.map((p: any) => (
+                <div key={p._id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, background: "var(--sa-surface)", border: "1px solid var(--sa-card-border)", borderRadius: 14, padding: "14px 18px" }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--sa-text)" }}>{p.userName}</div>
+                    <div style={{ fontSize: 11, color: "var(--sa-muted)", background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 6, display: "inline-block", marginTop: 4 }}>{p.method.toUpperCase()} — {p.details}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "#16a34a" }}>₹{p.amount}</div>
+                    <div style={{ fontSize: 10, color: "var(--sa-muted)" }}>{new Date(p.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button disabled={busy} onClick={() => processPayout(p._id, "processed")} style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Approve</button>
+                    <button disabled={busy} onClick={() => processPayout(p._id, "rejected")} style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: "var(--sa-card-bg)", border: "1px solid var(--sa-card-border)", borderRadius: 16, padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--sa-muted)", margin: "0 0 16px 0" }}>Payout History</h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--sa-card-border)" }}>
+                  <th style={{ textAlign: "left", padding: "12px 8px", color: "var(--sa-muted)", fontWeight: 500 }}>Partner</th>
+                  <th style={{ textAlign: "left", padding: "12px 8px", color: "var(--sa-muted)", fontWeight: 500 }}>Amount</th>
+                  <th style={{ textAlign: "left", padding: "12px 8px", color: "var(--sa-muted)", fontWeight: 500 }}>Method</th>
+                  <th style={{ textAlign: "left", padding: "12px 8px", color: "var(--sa-muted)", fontWeight: 500 }}>Status</th>
+                  <th style={{ textAlign: "left", padding: "12px 8px", color: "var(--sa-muted)", fontWeight: 500 }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((p: any) => (
+                  <tr key={p._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+                    <td style={{ padding: "12px 8px", color: "var(--sa-text)" }}>{p.userName}</td>
+                    <td style={{ padding: "12px 8px", fontWeight: 700, color: "var(--sa-text)" }}>₹{p.amount}</td>
+                    <td style={{ padding: "12px 8px", color: "var(--sa-muted)", fontSize: 11 }}>{p.method}</td>
+                    <td style={{ padding: "12px 8px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: p.status === "processed" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: p.status === "processed" ? "#22c55e" : "#ef4444" }}>{p.status.toUpperCase()}</span>
+                    </td>
+                    <td style={{ padding: "12px 8px", color: "var(--sa-muted)", fontSize: 11 }}>{new Date(p.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderTab = () => {
+    if (tab === "dashboard") return <DashboardTab />;
     if (tab === "users") return <UsersTab />;
     if (tab === "applications") return <PartnersTab />;
     if (tab === "orders") return <OrdersTab />;
     if (tab === "products") return <ProductsTab />;
     if (tab === "delivery") return <DeliveryTab />;
+    if (tab === "payouts") return <PayoutsTab />;
     if (tab === "analytics") return <AnalyticsTab />;
     if (tab === "logs") return <LogsTab />;
     return <DashboardTab />;
@@ -1853,7 +1946,7 @@ export default function SuperAdminPanel() {
             boxShadow: "var(--sa-modal-shadow)"
           }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--sa-card-border)", fontSize: 13, fontWeight: 600, color: "var(--sa-text)", display: "flex", justifyContent: "space-between" }}>
-              Notifications <span style={{ fontSize: 11, color: "#22c55e" }}>{pendingOrders.length} pending</span>
+              Notifications <span style={{ fontSize: 11, color: "#22c55e" }}>{pendingOrders.length + payouts.filter((p:any)=>p.status==="pending").length} pending</span>
             </div>
             {pendingOrders.length === 0
               ? <div style={{ padding: 20, textAlign: "center", color: "var(--sa-muted)", fontSize: 13 }}>All caught up!</div>

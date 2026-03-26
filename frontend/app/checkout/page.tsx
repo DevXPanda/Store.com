@@ -241,6 +241,29 @@ export default function CheckoutPage() {
       prefill: { name: form.name, email: form.email, contact: form.phone },
       theme: { color: '#14532d' },
       modal: { ondismiss: () => setPayLoading(false) },
+      // Explicitly show method preferences
+      method: {
+        upi: true,
+        card: true,
+        netbanking: true,
+        wallet: true,
+      },
+      // Explicitly enable UPI and other methods
+      config: {
+        display: {
+          blocks: {
+            preferred: {
+              name: "Recommended",
+              instruments: [
+                { method: "upi" },
+                { method: "card" }
+              ],
+            },
+          },
+          sequence: ["block.preferred", "method.netbanking", "method.wallet"],
+          preferences: { show_default_blocks: true },
+        },
+      },
     }
 
     const rzp = new window.Razorpay(options)

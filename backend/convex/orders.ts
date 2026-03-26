@@ -171,6 +171,15 @@ export const updateOrderStatus = mutation({
         note: args.note,
         timestamp: Date.now(),
       });
+      // Credit partner balance on delivery
+      if (args.status === "delivered") {
+        const dboy = await ctx.db.get(order.assignedDeliveryBoyId);
+        if (dboy) {
+          await ctx.db.patch(order.assignedDeliveryBoyId, {
+            balance: (dboy.balance || 0) + 70,
+          });
+        }
+      }
     }
   },
 });
@@ -233,11 +242,13 @@ export const getDeliveryStats = query({
     const myOrders = await ctx.db.query("orders")
       .withIndex("by_delivery_boy", q => q.eq("assignedDeliveryBoyId", args.deliveryBoyId)).collect();
     const today = new Date().toDateString();
+    const dboy = await ctx.db.get(args.deliveryBoyId);
     return {
       totalAssigned: myOrders.length,
       delivered: myOrders.filter(o => o.status === "delivered").length,
       pending: myOrders.filter(o => ["assigned","picked_up","out_for_delivery"].includes(o.status)).length,
       todayDelivered: myOrders.filter(o => o.status === "delivered" && new Date(o.createdAt).toDateString() === today).length,
+      balance: dboy?.balance || 0,
     };
   },
 });

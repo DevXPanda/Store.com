@@ -15,6 +15,7 @@ import type * as auth from "../auth.js";
 import type * as customerRegistration from "../customerRegistration.js";
 import type * as deliveryPartnerAuth from "../deliveryPartnerAuth.js";
 import type * as orders from "../orders.js";
+import type * as payouts from "../payouts.js";
 import type * as products from "../products.js";
 import type * as publicHome from "../publicHome.js";
 import type * as testimonials from "../testimonials.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   customerRegistration: typeof customerRegistration;
   deliveryPartnerAuth: typeof deliveryPartnerAuth;
   orders: typeof orders;
+  payouts: typeof payouts;
   products: typeof products;
   publicHome: typeof publicHome;
   testimonials: typeof testimonials;

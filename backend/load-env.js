@@ -12,10 +12,16 @@ function applyBackendEnv(panelDir) {
   try {
     dotenv = require('dotenv');
   } catch {
-    console.warn(
-      '[vegfru] Missing `dotenv`. From repo root run: cd backend && npm install'
-    );
-    return;
+    try {
+      // Try to load from the backend directory's own node_modules
+      const backendDotenvPath = path.join(__dirname, 'node_modules', 'dotenv');
+      dotenv = require(backendDotenvPath);
+    } catch {
+      console.warn(
+        '[vegfru] Missing `dotenv`. From repo root run: cd backend && npm install'
+      );
+      return;
+    }
   }
   const backendRoot = path.resolve(panelDir, '..', 'backend');
   for (const name of ['.env', '.env.local']) {
