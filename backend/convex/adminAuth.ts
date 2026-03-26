@@ -31,20 +31,32 @@ export const ensureDefaultSuperAdmin = mutation({
   },
 });
 
+async function findAdmin(ctx: any, email: string) {
+  const admin = await ctx.db
+    .query("admins")
+    .withIndex("by_email", (q: any) => q.eq("email", email))
+    .first();
+  if (admin) return admin;
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_email", (q: any) => q.eq("email", email))
+    .first();
+  if (user && (user.role === "admin" || user.role === "superadmin")) return user;
+  return null;
+}
+
 export const getAdminByEmail = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("admins")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .first();
+    return await findAdmin(ctx, args.email.toLowerCase().trim());
   },
 });
 
 export const updateAdminLastLogin = mutation({
-  args: { id: v.id("admins") },
+  args: { id: v.union(v.id("admins"), v.id("users")) },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { lastLogin: Date.now() });
+    await ctx.db.patch(args.id as any, { lastLogin: Date.now() });
   },
 });
 
@@ -88,5 +100,63 @@ export const getAllAdmins = query({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("admins").order("desc").collect();
+  },
+});
+
+function randomOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export const requestAdminEmailOtp = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    const admin = await findAdmin(ctx, email);
+    if (!admin || !admin.isActive) {
+      throw new Error("No active admin account found for this email");
+    }
+
+    const existingOtps = await ctx.db
+      .query("adminEmailOtps")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+    for (const row of existingOtps) await ctx.db.delete(row._id);
+
+    const code = randomOtp();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    await ctx.db.insert("adminEmailOtps", { email, code, expiresAt });
+    return { ok: true as const, email, expiresInSec: 300, devCode: code };
+  },
+});
+
+export const verifyAdminEmailOtp = mutation({
+  args: { email: v.string(), code: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    const admin: any = await findAdmin(ctx, email);
+    if (!admin || !admin.isActive) throw new Error("Invalid admin login");
+
+    const trimmed = args.code.trim();
+    const rows = await ctx.db
+      .query("adminEmailOtps")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .collect();
+
+    const match = rows.find((r) => r.code === trimmed && r.expiresAt > Date.now());
+    if (!match) throw new Error("Invalid or expired OTP. Request a new code.");
+
+    await ctx.db.delete(match._id);
+    for (const r of rows) if (r._id !== match._id) await ctx.db.delete(r._id);
+
+    await ctx.db.patch(admin._id, { lastLogin: Date.now() });
+    return {
+      success: true,
+      user: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+      },
+    };
   },
 });

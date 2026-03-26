@@ -120,13 +120,13 @@ export default function PanelHome() {
               >
                 View storefront
               </a>
-              <Link
-                href="/?signin=1"
+              <button
+                onClick={() => setOpenSignIn(true)}
                 className="inline-flex items-center gap-2 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-lg active:scale-[0.98]"
               >
                 Sign in
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -168,14 +168,14 @@ export default function PanelHome() {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/?signin=1"
+                <button
+                  onClick={() => setOpenSignIn(true)}
                   className="group flex items-center gap-3 bg-forest-700 hover:bg-forest-800 text-white font-body font-medium px-7 py-4 rounded-2xl transition-all hover:shadow-xl hover:shadow-green-900/25 active:scale-95"
                 >
                   <Lock className="w-4 h-4" />
                   Super Admin sign in
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                </button>
                 <a
                   href={ADMIN}
                   className="flex items-center gap-2 bg-white hover:bg-green-50 text-forest-800 font-body font-medium px-7 py-4 rounded-2xl border border-green-200 transition-all hover:border-green-400 hover:shadow-md active:scale-95"
@@ -239,9 +239,9 @@ export default function PanelHome() {
               Store
             </a>
             <span className="text-gray-300">·</span>
-            <Link href="/?signin=1" className="hover:text-forest-800">
+            <button onClick={() => setOpenSignIn(true)} className="hover:text-forest-800">
               Super Admin login
-            </Link>
+            </button>
           </div>
         </div>
       </footer>

@@ -21,6 +21,7 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [emailOtpRequired, setEmailOtpRequired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,6 +35,7 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
     setEmail("");
     setPassword("");
     setShowPw(false);
+    setEmailOtpRequired(false);
   }, [open, initialAuthTab]);
 
   if (!open) return null;
@@ -128,20 +130,58 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data.success && data.user && data.user.role === "admin") {
-        document.cookie = `vegfru_token=${data.token};path=/;max-age=${7 * 86400};samesite=strict`;
-        document.cookie = `vegfru_user=${JSON.stringify(data.user)};path=/;max-age=${7 * 86400};samesite=strict`;
-        localStorage.setItem("vegfru_admin", JSON.stringify(data.user));
-        handleClose();
-        router.push("/admin");
-        router.refresh();
-        return;
+      if (data.success) {
+        if (data.otpRequired) {
+          setEmailOtpRequired(true);
+          if (data.devCode) {
+            console.log("Admin Email OTP (Dev):", data.devCode);
+          }
+        } else if (data.user && data.user.role === "admin") {
+          completeLogin(data);
+        } else {
+          setError("Access denied. Admin account required.");
+        }
+      } else {
+        setError(data.error || "Login failed");
       }
-      setError(data.error || "Invalid credentials. Admin account required.");
     } catch {
       setError("Network error. Please try again.");
     }
     setLoading(false);
+  };
+
+  const verifyEmailOtp = async () => {
+    if (!otp || otp.length < 6) {
+      setError("Enter 6-digit code");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        completeLogin(data);
+      } else {
+        setError(data.error || "Invalid OTP");
+      }
+    } catch {
+      setError("Network error");
+    }
+    setLoading(false);
+  };
+
+  const completeLogin = (data: any) => {
+    document.cookie = `vegfru_token=${data.token};path=/;max-age=${7 * 86400};samesite=strict`;
+    document.cookie = `vegfru_user=${JSON.stringify(data.user)};path=/;max-age=${7 * 86400};samesite=strict`;
+    localStorage.setItem("vegfru_admin", JSON.stringify(data.user));
+    handleClose();
+    router.push("/admin");
+    router.refresh();
   };
 
   return (
@@ -219,7 +259,7 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
             </div>
           )}
 
-          {authTab === "email" && (
+          {authTab === "email" && !emailOtpRequired && (
             <>
               <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
                 Email
@@ -262,6 +302,50 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? "Signing in…" : "Sign in"}
+              </button>
+            </>
+          )}
+
+          {authTab === "email" && emailOtpRequired && (
+            <>
+              <div className="mb-4 text-center">
+                <p className="text-sm text-gray-600">
+                  Verification code sent to <span className="font-semibold text-forest-800">{email}</span>
+                </p>
+              </div>
+              <label className="block text-left text-[11px] font-mono uppercase tracking-wide text-gray-500 mb-1.5">
+                Enter Email OTP
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="6-digit code"
+                value={otp}
+                onChange={(e) =>
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                className="w-full rounded-xl border border-green-200 bg-white px-4 py-3 text-center text-2xl tracking-[0.4em] font-mono text-forest-900 outline-none focus:ring-2 focus:ring-green-600/30 focus:border-green-500"
+              />
+              <button
+                type="button"
+                disabled={loading || otp.length !== 6}
+                onClick={verifyEmailOtp}
+                className="mt-4 w-full rounded-xl bg-forest-700 hover:bg-forest-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Verify &amp; Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailOtpRequired(false);
+                  setOtp("");
+                  setError("");
+                }}
+                className="mt-3 w-full text-sm text-forest-700 hover:underline text-center"
+              >
+                Change email
               </button>
             </>
           )}

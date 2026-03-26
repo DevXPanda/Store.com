@@ -216,6 +216,8 @@ export default function SuperAdminPanel() {
   const [authError, setAuthError] = useState("");
   const [showAuthPw, setShowAuthPw] = useState(false);
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otp, setOtp] = useState("");
 
   // Modals
   const [createUserModal, setCreateUserModal] = useState(false);
@@ -381,15 +383,14 @@ export default function SuperAdminPanel() {
         body: JSON.stringify(authForm),
       });
       const data = await res.json();
-      if (data.success && data.user?.role === "superadmin") {
-        const encoded = encodeURIComponent(JSON.stringify(data.user));
-        document.cookie = `sa_token=${data.token};path=/;max-age=${8 * 3600};samesite=strict`;
-        document.cookie = `sa_user=${encoded};path=/;max-age=${8 * 3600};samesite=strict`;
-        localStorage.setItem("vegfru_superadmin", JSON.stringify(data.user));
-        setSaUser(data.user);
-        setShowSignIn(false);
-        setAuthForm({ email: "", password: "" });
-        setAuthError("");
+      if (data.success) {
+        if (data.otpRequired) {
+           setOtpRequired(true);
+           if (data.devCode) console.log("SuperAdmin OTP (Dev):", data.devCode);
+           setAuthLoading(false);
+           return;
+        }
+        completeSuperAdminLogin(data);
         return;
       }
       setAuthError(data.error || "Invalid credentials. Superadmin account required.");
@@ -397,6 +398,44 @@ export default function SuperAdminPanel() {
       setAuthError("Network error. Please try again.");
     }
     setAuthLoading(false);
+  };
+
+  const handleVerifySuperAdminOtp = async () => {
+    if (!otp || otp.length < 6) {
+      setAuthError("Enter 6-digit code");
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authForm.email, otp }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        completeSuperAdminLogin(data);
+      } else {
+        setAuthError(data.error || "Invalid OTP");
+      }
+    } catch {
+      setAuthError("Network error");
+    }
+    setAuthLoading(false);
+  };
+
+  const completeSuperAdminLogin = (data: any) => {
+    const encoded = encodeURIComponent(JSON.stringify(data.user));
+    document.cookie = `sa_token=${data.token};path=/;max-age=${8 * 3600};samesite=strict`;
+    document.cookie = `sa_user=${encoded};path=/;max-age=${8 * 3600};samesite=strict`;
+    localStorage.setItem("vegfru_superadmin", JSON.stringify(data.user));
+    setSaUser(data.user);
+    setShowSignIn(false);
+    setAuthForm({ email: "", password: "" });
+    setOtp("");
+    setOtpRequired(false);
+    setAuthError("");
   };
 
   if (!authChecked) {
@@ -421,40 +460,78 @@ export default function SuperAdminPanel() {
 
             {authError && <div style={{ marginBottom: 12, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, color: "#fda4af", fontSize: 13, padding: "10px 12px" }}>{authError}</div>}
 
-            <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Email</label>
-            <input
-              type="email"
-              autoComplete="username"
-              value={authForm.email}
-              onChange={(e) => setAuthForm((p) => ({ ...p, email: e.target.value }))}
-              placeholder="you@example.com"
-              style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none", marginBottom: 12 }}
-            />
+            {!otpRequired ? (
+              <>
+                <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Email</label>
+                <input
+                  type="email"
+                  autoComplete="username"
+                  value={authForm.email}
+                  onChange={(e) => setAuthForm((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="you@example.com"
+                  style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none", marginBottom: 12 }}
+                />
 
-            <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Password</label>
-            <div style={{ position: "relative", marginBottom: 16 }}>
-              <input
-                type={showAuthPw ? "text" : "password"}
-                autoComplete="current-password"
-                value={authForm.password}
-                onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))}
-                onKeyDown={(e) => e.key === "Enter" && handleSuperAdminSignIn()}
-                placeholder="••••••••"
-                style={{ width: "100%", padding: "12px 44px 12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none" }}
-              />
-              <button type="button" onClick={() => setShowAuthPw((v) => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", display: "flex" }}>
-                {showAuthPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+                <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Password</label>
+                <div style={{ position: "relative", marginBottom: 16 }}>
+                  <input
+                    type={showAuthPw ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={authForm.password}
+                    onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && handleSuperAdminSignIn()}
+                    placeholder="••••••••"
+                    style={{ width: "100%", padding: "12px 44px 12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#e2e8f0", fontSize: 13, outline: "none" }}
+                  />
+                  <button type="button" onClick={() => setShowAuthPw((v) => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", display: "flex" }}>
+                    {showAuthPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
 
-            <button
-              type="button"
-              disabled={authLoading}
-              onClick={handleSuperAdminSignIn}
-              style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: authLoading ? "rgba(124,58,237,0.6)" : "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", fontWeight: 600, fontSize: 14, cursor: authLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-            >
-              {authLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Signing in...</> : <><Lock size={15} />Sign In</>}
-            </button>
+                <button
+                  type="button"
+                  disabled={authLoading}
+                  onClick={handleSuperAdminSignIn}
+                  style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: authLoading ? "rgba(124,58,237,0.6)" : "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", fontWeight: 600, fontSize: 14, cursor: authLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  {authLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Signing in...</> : <><Lock size={15} />Sign In</>}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: 16, textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: 14 }}>
+                  Enter the 6-digit code sent to<br/>
+                  <span style={{ color: "#a855f7", fontWeight: 600 }}>{authForm.email}</span>
+                </div>
+                <label style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", fontFamily: "monospace", letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 7 }}>Email OTP</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={(e) => e.key === "Enter" && handleVerifySuperAdminOtp()}
+                  placeholder="000000"
+                  style={{ width: "100%", padding: "12px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(168,85,247,0.22)", borderRadius: 12, color: "#fff", fontSize: 24, fontWeight: 700, letterSpacing: 8, textAlign: "center", outline: "none", marginBottom: 16 }}
+                />
+
+                <button
+                  type="button"
+                  disabled={authLoading || otp.length < 6}
+                  onClick={handleVerifySuperAdminOtp}
+                  style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: (authLoading || otp.length < 6) ? "rgba(124,58,237,0.6)" : "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", fontWeight: 600, fontSize: 14, cursor: (authLoading || otp.length < 6) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  {authLoading ? <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />Verifying...</> : <><CheckCircle size={15} />Verify & Access</>}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => { setOtpRequired(false); setOtp(""); }}
+                  style={{ width: "100%", background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 12, cursor: "pointer", textDecoration: "underline" }}
+                >
+                  Change account
+                </button>
+              </>
+            )}
           </div>
         )}
         <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}} .fade-in{animation:fadeIn 0.25s ease-out}`}</style>
