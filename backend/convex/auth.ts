@@ -104,6 +104,13 @@ export const updateLastLogin = mutation({
   },
 });
 
+export const updateLocation = mutation({
+  args: { id: v.id("users"), lat: v.number(), lng: v.number() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, { lat: args.lat, lng: args.lng });
+  },
+});
+
 export const getAllDeliveryBoys = query({
   args: {},
   handler: async (ctx) => {

@@ -134,6 +134,22 @@ export default function DeliveryApp() {
     return () => clearInterval(t);
   }, [fetchOrders]);
 
+  useEffect(() => {
+    if (!online || !(deliveryBoy as any)._id) return;
+    const updateLoc = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          void cm("auth:updateLocation", { id: (deliveryBoy as any)._id, lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => { /* ignore */ },
+        { enableHighAccuracy: true }
+      );
+    };
+    updateLoc();
+    const t = setInterval(updateLoc, 60000);
+    return () => clearInterval(t);
+  }, [online, deliveryBoy]);
+
   const active = orders.filter((o) => ["assigned", "picked_up", "out_for_delivery"].includes(o.status));
   const delivered = orders.filter((o) => o.status === "delivered");
   const todayDel = delivered.filter((o) => Date.now() - o.createdAt < 86400000);
@@ -265,7 +281,10 @@ export default function DeliveryApp() {
                     <Phone size={14} /> Call
                   </a>
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(order.deliveryAddress)}`}
+                    href={order.lat != null && order.lng != null 
+                      ? `https://www.google.com/maps/dir/?api=1&destination=${order.lat},${order.lng}`
+                      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     className="flex min-w-[100px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-500/25 bg-sky-500/10 py-2.5 text-[13px] font-medium text-sky-700 no-underline transition hover:bg-sky-500/15 dark:text-sky-300"

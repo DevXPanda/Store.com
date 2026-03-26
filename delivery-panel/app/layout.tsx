@@ -5,6 +5,11 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "VegFru Delivery",
   description: "VegFru Delivery Partner App",
+  icons: {
+    icon: [{ url: '/images/Vegfru.png' }],
+    apple: '/images/Vegfru.png',
+    shortcut: '/images/Vegfru.png',
+  },
 };
 
 export const viewport: Viewport = {

@@ -210,6 +210,35 @@ export default function SuperAdminPanel() {
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" }>({ msg: "", type: "ok" });
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const seenOrderIds = useRef<Set<string>>(new Set());
+
+  const playNotifSound = useCallback((type: "alert" | "chime" = "alert") => {
+    try {
+      const AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const playTone = (freq: number, start: number, duration: number, vol: number) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        g.gain.setValueAtTime(0, ctx.currentTime + start);
+        g.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + duration);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + duration);
+      };
+
+      if (type === "alert") {
+        playTone(880, 0, 0.4, 0.1);
+        playTone(660, 0.15, 0.5, 0.08);
+      } else {
+        playTone(523.25, 0, 0.6, 0.1); // C5 chime
+      }
+    } catch { }
+  }, []);
   const [authChecked, setAuthChecked] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
@@ -362,12 +391,24 @@ export default function SuperAdminPanel() {
     setSelectedProductIds(prev => prev.filter(id => products.some((p: any) => p._id === id)));
   }, [products]);
 
-  // If the user is typing in the search box, keep focus after re-renders.
   useEffect(() => {
     if (productSearchFocusedRef.current) {
       productSearchInputRef.current?.focus();
     }
   }, [productSearch]);
+
+  useEffect(() => {
+    if (orders.length === 0) return;
+    const isFirstLoad = seenOrderIds.current.size === 0;
+    const newIds = orders.filter(o => !seenOrderIds.current.has(o._id));
+    if (newIds.length > 0) {
+      if (!isFirstLoad) {
+        const hasNewPending = newIds.some(o => o.status === "pending");
+        if (hasNewPending) playNotifSound("alert");
+      }
+      newIds.forEach(o => seenOrderIds.current.add(o._id));
+    }
+  }, [orders, playNotifSound]);
 
   const handleSuperAdminSignIn = async () => {
     if (!authForm.email || !authForm.password) {
@@ -1939,8 +1980,8 @@ export default function SuperAdminPanel() {
           {isMobile ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#14532d,#166534)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDarkMode ? "0 4px 16px rgba(20,83,45,0.4)" : "0 4px 14px rgba(22,101,52,0.22)" }}>
-                  <Leaf size={18} color="#dcfce7" />
+                <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+                  <img src="/images/Vegfru.png" alt="VegFru Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "var(--sa-text)", letterSpacing: "-0.3px" }}>Veg<span style={{ color: "#16a34a" }}>Fru</span></div>
@@ -1957,8 +1998,8 @@ export default function SuperAdminPanel() {
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#14532d,#166534)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDarkMode ? "0 4px 16px rgba(20,83,45,0.4)" : "0 4px 14px rgba(22,101,52,0.22)" }}>
-                  <Leaf size={18} color="#dcfce7" />
+                <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+                  <img src="/images/Vegfru.png" alt="VegFru Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "var(--sa-text)", letterSpacing: "-0.3px" }}>Veg<span style={{ color: "#16a34a" }}>Fru</span></div>

@@ -238,8 +238,8 @@ export function SignInModal({ open, onClose, initialAuthTab = "phone" }: Props) 
 
         <div className="px-6 pt-4 pb-2 text-center">
           <div className="flex justify-center mb-3">
-            <div className="w-12 h-12 bg-forest-700 rounded-xl flex items-center justify-center shadow-md">
-              <Leaf className="w-6 h-6 text-green-200" />
+            <div className="w-12 h-12 flex items-center justify-center transition-transform duration-300 hover:scale-110">
+              <img src="/images/Vegfru.png" alt="VegFru Logo" className="w-full h-full object-contain" />
             </div>
           </div>
           <h2 className="font-display text-2xl font-bold text-forest-900">

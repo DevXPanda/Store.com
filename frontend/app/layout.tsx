@@ -61,10 +61,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/images/Vegfru.png', type: 'image/png' },
     ],
-    apple: '/apple-touch-icon.png',
-    shortcut: '/favicon.svg',
+    apple: '/images/Vegfru.png',
+    shortcut: '/images/Vegfru.png',
   },
   manifest: '/manifest.json',
   verification: {

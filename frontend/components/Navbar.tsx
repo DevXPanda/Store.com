@@ -208,8 +208,8 @@ export default function Navbar({ cartCount, onCartClick }: { cartCount: number; 
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <a href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 bg-forest-700 rounded-xl flex items-center justify-center shadow-md group-hover:rotate-12 transition-transform duration-300">
-                <Leaf className="w-5 h-5 text-green-200" />
+              <div className="w-10 h-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                <img src="/images/Vegfru.png" alt="VegFru Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-display font-bold text-xl text-forest-800 tracking-tight">Veg<span className="text-green-600">Fru</span></span>

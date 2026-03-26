@@ -75,6 +75,8 @@ export default defineSchema({
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
     avatar: v.optional(v.string()),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
     isActive: v.boolean(),
     lastLogin: v.optional(v.number()),
     createdAt: v.number(),
@@ -192,6 +194,8 @@ export default defineSchema({
     orderedViaAI: v.optional(v.boolean()),
     cancelledBy: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

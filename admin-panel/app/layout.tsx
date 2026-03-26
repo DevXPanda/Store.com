@@ -4,6 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "VegFru Admin",
   description: "VegFru Admin Dashboard",
+  icons: {
+    icon: [{ url: '/images/Vegfru.png' }],
+    apple: '/images/Vegfru.png',
+    shortcut: '/images/Vegfru.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

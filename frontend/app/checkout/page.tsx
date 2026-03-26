@@ -46,6 +46,17 @@ export default function CheckoutPage() {
     address: '', city: 'Faridabad', pincode: '121001',
     paymentMethod: 'cod' as 'cod' | 'upi' | 'online',
   })
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => { /* ignore */ },
+        { enableHighAccuracy: true }
+      );
+    }
+  }, [])
 
   const loadCartFromStorage = useCallback(() => {
     try {
@@ -115,7 +126,9 @@ export default function CheckoutPage() {
       unitPrice: i.product.price,
       totalPrice: i.product.price * i.qty,
     })),
-  }), [form, cartProducts, subtotal, deliveryFee, discount, total, user])
+    lat: userCoords?.lat,
+    lng: userCoords?.lng,
+  }), [form, cartProducts, subtotal, deliveryFee, discount, total, user, userCoords])
 
   const clearCart = () => {
     localStorage.removeItem('vegfru_cart')

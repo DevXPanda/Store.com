@@ -66,6 +66,8 @@ export const placeOrder = mutation({
     razorpayOrderId: v.optional(v.string()),
     aiSessionId: v.optional(v.string()),
     orderedViaAI: v.optional(v.boolean()),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
     items: v.array(v.object({
       productId: v.optional(v.id("products")),
       productName: v.string(),

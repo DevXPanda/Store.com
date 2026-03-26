@@ -25,8 +25,8 @@ export function VegFruBrandBar({ subtitle, leftExtra, rightExtra }: Props) {
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <div className="flex items-center gap-2 shrink-0">
-              <div className="w-9 h-9 bg-forest-700 rounded-xl flex items-center justify-center shadow-md">
-                <Leaf className="w-5 h-5 text-green-200" />
+              <div className="w-10 h-10 flex items-center justify-center transition-transform duration-300 hover:scale-110">
+                <img src="/images/Vegfru.png" alt="VegFru Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="font-display font-bold text-xl text-forest-800 tracking-tight">
