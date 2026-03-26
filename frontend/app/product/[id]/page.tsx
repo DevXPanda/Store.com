@@ -6,6 +6,7 @@ import { ArrowLeft, Star, ShoppingCart, Heart, Check, Plus, Minus, Share2, Truck
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import CartSidebar from '@/components/CartSidebar'
 import { uiTokens } from '@/app/ui-tokens'
 import { mapConvexProduct, type CatalogProduct } from '@/lib/catalog'
 import { useConvexQuery } from '@/lib/convexFetch'
@@ -33,26 +34,52 @@ export default function ProductPage() {
   const [imgErr, setImgErr] = useState(false)
   const [activeTab, setActiveTab] = useState<'details' | 'nutrition' | 'reviews'>('details')
   const [cartCount, setCartCount] = useState(0)
+  const [cartItems, setCartItems] = useState<{ id: string; qty: number }[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
   const [toast, setToast] = useState('')
 
   const discount = product && product.originalPrice > 0
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0
 
-  useEffect(() => {
+  const loadCart = () => {
     try {
       const saved = localStorage.getItem('vegfru_cart')
       if (saved) {
         const cart = JSON.parse(saved)
+        setCartItems(cart)
         setCartCount(cart.reduce((s: number, i: { qty: number }) => s + i.qty, 0))
       }
     } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    loadCart()
+    const onCartUpdated = () => loadCart()
+    window.addEventListener('vegfru_cart_updated', onCartUpdated)
+    return () => window.removeEventListener('vegfru_cart_updated', onCartUpdated)
   }, [])
+
+  const handleRemoveFromCart = (id: string) => {
+    const updated = cartItems.filter(i => i.id !== id)
+    localStorage.setItem('vegfru_cart', JSON.stringify(updated))
+    setCartItems(updated)
+    setCartCount(updated.reduce((s, i) => s + i.qty, 0))
+    window.dispatchEvent(new Event('vegfru_cart_updated'))
+  }
+
+  const handleUpdateCartQty = (id: string, newQty: number) => {
+    const updated = cartItems.map(i => i.id === id ? { ...i, qty: newQty } : i)
+    localStorage.setItem('vegfru_cart', JSON.stringify(updated))
+    setCartItems(updated)
+    setCartCount(updated.reduce((s, i) => s + i.qty, 0))
+    window.dispatchEvent(new Event('vegfru_cart_updated'))
+  }
 
   if (!idStr || loading) {
     return (
       <>
-        <Navbar cartCount={cartCount} onCartClick={() => router.push('/checkout')} />
+        <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
         <div style={{ minHeight: '100vh', background: '#FEFAE0', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 120 }}>
           <p style={{ color: '#6b7280' }}>Loading…</p>
         </div>
@@ -64,7 +91,7 @@ export default function ProductPage() {
   if (!product) {
     return (
       <>
-        <Navbar cartCount={cartCount} onCartClick={() => router.push('/checkout')} />
+        <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
         <div style={{ minHeight: '100vh', background: '#FEFAE0', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 120 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>🌿</div>
@@ -104,7 +131,13 @@ export default function ProductPage() {
   const handleBuyNow = () => {
     if (product.stock === 0) return
     mergeProductIntoCart()
-    queueMicrotask(() => router.push('/checkout'))
+    // Use router.push with window.location.assign fallback for reliable navigation
+    router.push('/checkout')
+    setTimeout(() => {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/checkout')) {
+        window.location.assign('/checkout')
+      }
+    }, 150)
   }
 
   const handleShare = async () => {
@@ -323,7 +356,7 @@ export default function ProductPage() {
 
   return (
     <>
-      <Navbar cartCount={cartCount} onCartClick={() => router.push('/checkout')} />
+      <Navbar cartCount={cartCount} onCartClick={() => setCartOpen(true)} />
       <div className="relative z-40 min-h-screen w-full max-w-full overflow-x-hidden bg-[#FEFAE0] pt-[88px] sm:pt-24">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
@@ -490,6 +523,13 @@ export default function ProductPage() {
         )}
       </div>
       <Footer />
+      <CartSidebar
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        items={cartItems}
+        onRemove={handleRemoveFromCart}
+        onUpdateQty={handleUpdateCartQty}
+      />
     </>
   )
 }
